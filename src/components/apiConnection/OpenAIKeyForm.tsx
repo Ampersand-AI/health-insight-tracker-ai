@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -45,6 +44,16 @@ export const OpenAIKeyForm = () => {
     }
   }, [form]);
 
+  // Watch for API key changes to load models
+  const apiKey = form.watch("apiKey");
+
+  // Fetch models whenever API key changes
+  useEffect(() => {
+    if (apiKey.length > 0) {
+      fetchAvailableModels(apiKey);
+    }
+  }, [apiKey]);
+
   const fetchAvailableModels = async (apiKey: string) => {
     if (!apiKey) return;
     
@@ -83,20 +92,15 @@ export const OpenAIKeyForm = () => {
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     localStorage.setItem("openrouter_api_key", data.apiKey);
     
-    // Only update the model if it hasn't been selected before
-    if (!modelSelected) {
-      localStorage.setItem("openrouter_model", data.model);
-      setModelSelected(true);
-    }
+    // Save the selected model and mark it as selected
+    localStorage.setItem("openrouter_model", data.model);
+    setModelSelected(true);
     
     setIsSaved(true);
     toast({
       title: "API Key Saved",
       description: `Your OpenRouter API key and model have been saved`,
     });
-    
-    // Fetch available models when API key is saved
-    fetchAvailableModels(data.apiKey);
   };
 
   const testConnection = async () => {
@@ -222,7 +226,7 @@ export const OpenAIKeyForm = () => {
                 <FormItem>
                   <FormLabel>Model</FormLabel>
                   <Select 
-                    onValueChange={handleModelChange} 
+                    onValueChange={field.onChange} 
                     defaultValue={field.value}
                     disabled={modelSelected}
                   >
