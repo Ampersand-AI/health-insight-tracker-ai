@@ -75,7 +75,7 @@ function generateAnalysisFromFileName(filename: string): GeminiAnalysisResult {
       name: "Cholesterol",
       value: Math.floor(Math.random() * (220 - 150) + 150),
       unit: "mg/dL",
-      status: "normal" as const,
+      status: "normal" as "normal" | "warning" | "danger",
       range: "125-200",
       history: [] as Array<{ date: string; value: number }>
     },
@@ -83,7 +83,7 @@ function generateAnalysisFromFileName(filename: string): GeminiAnalysisResult {
       name: "Glucose",
       value: Math.floor(Math.random() * (110 - 80) + 80),
       unit: "mg/dL",
-      status: "normal" as const,
+      status: "normal" as "normal" | "warning" | "danger",
       range: "70-100",
       history: [] as Array<{ date: string; value: number }>
     },
@@ -91,7 +91,7 @@ function generateAnalysisFromFileName(filename: string): GeminiAnalysisResult {
       name: "Hemoglobin",
       value: parseFloat((Math.random() * (16 - 12) + 12).toFixed(1)),
       unit: "g/dL",
-      status: "normal" as const,
+      status: "normal" as "normal" | "warning" | "danger",
       range: "14-18",
       history: [] as Array<{ date: string; value: number }>
     }
