@@ -37,6 +37,105 @@ export interface AnalysisResult {
   patientInfo?: PatientInfo;
 }
 
+// Function to normalize strings to make comparing metrics easier
+function normalizeString(str: string): string {
+  return str.toLowerCase()
+    .replace(/[\s\-\_\:\/\,\.\(\)]+/g, '')
+    .replace(/hemoglobina/, 'hemoglobin')
+    .replace(/triglycerides/, 'triglyceride')
+    .replace(/lymphocytes/, 'lymphocyte')
+    .replace(/neutrophils/, 'neutrophil')
+    .replace(/platelets/, 'platelet')
+    .replace(/sodium/, 'na')
+    .replace(/potassium/, 'k')
+    .replace(/chloride/, 'cl')
+    .replace(/calcium/, 'ca')
+    .replace(/totalbilirubin/, 'bilirubintotal')
+    .replace(/directbilirubin/, 'bilirubindirect')
+    .replace(/sgot/, 'ast')
+    .replace(/sgpt/, 'alt');
+}
+
+// Function to merge metrics from multiple analyses
+function mergeMetrics(allMetrics: HealthMetric[][]): HealthMetric[] {
+  // Create a map to store merged metrics by normalized name
+  const metricMap = new Map<string, HealthMetric>();
+  
+  // Process all metrics from all models
+  for (const metrics of allMetrics) {
+    for (const metric of metrics) {
+      // Skip empty metrics
+      if (!metric.name) continue;
+      
+      const normalizedName = normalizeString(metric.name);
+      
+      if (metricMap.has(normalizedName)) {
+        // Update existing metric with better data if available
+        const existing = metricMap.get(normalizedName)!;
+        
+        // Keep the more detailed description
+        if ((!existing.description && metric.description) || 
+            (metric.description && existing.description && 
+             metric.description.length > existing.description.length)) {
+          existing.description = metric.description;
+        }
+        
+        // Keep more specific category
+        if ((!existing.category && metric.category) || 
+            (metric.category && existing.category && 
+             metric.category !== "Other" && existing.category === "Other")) {
+          existing.category = metric.category;
+        }
+        
+        // Keep more specific range if available
+        if ((!existing.range || existing.range === "Not specified") && 
+            metric.range && metric.range !== "Not specified") {
+          existing.range = metric.range;
+        }
+        
+        // If both have ranges, prefer the more specific one
+        if (existing.range && metric.range && 
+            existing.range !== "Not specified" && metric.range !== "Not specified" &&
+            metric.range.length > existing.range.length) {
+          existing.range = metric.range;
+        }
+      } else {
+        // Add new metric to the map
+        metricMap.set(normalizedName, { ...metric });
+      }
+    }
+  }
+  
+  // Convert map back to array
+  return Array.from(metricMap.values());
+}
+
+// Function to merge patient info from multiple analyses
+function mergePatientInfo(allPatientInfos: PatientInfo[]): PatientInfo {
+  const merged: PatientInfo = {};
+  
+  for (const info of allPatientInfos) {
+    if (!info) continue;
+    
+    // For each field, prefer non-empty values
+    Object.entries(info).forEach(([key, value]) => {
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        const existingValue = merged[key as keyof PatientInfo];
+        
+        // If we don't have this field yet, or the new value is longer (possibly more detailed)
+        if (!existingValue || 
+            (typeof existingValue === 'string' && 
+             value.length > existingValue.length && 
+             !value.includes('undefined'))) {
+          merged[key as keyof PatientInfo] = value;
+        }
+      }
+    });
+  }
+  
+  return merged;
+}
+
 async function analyzeWithModel(ocrText: string, model: string, apiKey: string): Promise<AnalysisResult | null> {
   console.log(`Attempting analysis with model: ${model}`);
   
@@ -225,51 +324,95 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     }
 
     console.log(`Starting health report analysis with primary model: ${primaryModel}`);
-    console.log(`Fallback enabled: ${useMultipleModels}, Fallback models: ${fallbackModels.length}`);
+    console.log(`Multiple models enabled: ${useMultipleModels}, Fallback models: ${fallbackModels.length}`);
     
-    // Try the primary model first
-    let result = await analyzeWithModel(ocrText, primaryModel, apiKey);
+    let allResults: AnalysisResult[] = [];
     
-    // If primary model failed and fallback is enabled, try fallback models
-    if ((!result || result.metrics.length === 0) && useMultipleModels && fallbackModels.length > 0) {
-      console.log("Primary model failed, trying fallback models");
-      
+    // Always try the primary model
+    const primaryResult = await analyzeWithModel(ocrText, primaryModel, apiKey);
+    if (primaryResult && primaryResult.metrics.length > 0) {
+      allResults.push(primaryResult);
+    }
+    
+    // If multiple models enabled, try all fallback models in parallel
+    if (useMultipleModels && fallbackModels.length > 0) {
       toast({
-        title: "Trying Alternative Models",
-        description: "Primary model analysis failed. Trying fallback models...",
+        title: "Using Multiple Models",
+        description: "Analyzing with multiple AI models for more comprehensive results...",
       });
       
-      for (const fallbackModel of fallbackModels) {
-        const fallbackResult = await analyzeWithModel(ocrText, fallbackModel, apiKey);
-        
-        // Only use the fallback if it extracted metrics and is better than current result
-        if (fallbackResult && (!result || fallbackResult.metrics.length > result.metrics.length)) {
-          result = fallbackResult;
-          console.log(`Successfully analyzed with fallback model: ${fallbackModel} (found ${fallbackResult.metrics.length} metrics)`);
-          
-          // If we have a good number of metrics, stop trying more models
-          if (fallbackResult.metrics.length > 5) {
-            break;
-          }
+      // Create promises for all fallback models
+      const fallbackPromises = fallbackModels.map(model => 
+        analyzeWithModel(ocrText, model, apiKey)
+      );
+      
+      // Execute all promises in parallel
+      const fallbackResults = await Promise.all(fallbackPromises);
+      
+      // Add successful results to our collection
+      for (const result of fallbackResults) {
+        if (result && result.metrics.length > 0) {
+          allResults.push(result);
         }
       }
     }
     
-    if (result) {
-      const modelName = result.modelUsed?.split('/').pop() || primaryModel.split('/').pop();
-      toast({
-        title: "Analysis Complete",
-        description: `Health report analyzed successfully using ${modelName} (${result.metrics.length} parameters found)`,
-      });
-      
-      // Remove all historical data by storing only the current report
-      // This effectively clears history per the user's request
-      localStorage.removeItem('scannedReports');
-      
-      return result;
-    } else {
+    if (allResults.length === 0) {
       throw new Error("All models failed to analyze the report");
     }
+    
+    // Merge results from multiple models if we have more than one successful result
+    let mergedResult: AnalysisResult;
+    
+    if (allResults.length > 1) {
+      console.log(`Merging results from ${allResults.length} different models`);
+      
+      // Merge metrics from all models
+      const allMetrics = allResults.map(result => result.metrics);
+      const mergedMetrics = mergeMetrics(allMetrics);
+      
+      // Merge patient info from all models
+      const allPatientInfos = allResults.map(result => result.patientInfo || {});
+      const mergedPatientInfo = mergePatientInfo(allPatientInfos);
+      
+      // Use the summary and recommendations from the result with the most metrics
+      const bestResult = allResults.reduce((best, current) => 
+        current.metrics.length > best.metrics.length ? current : best, allResults[0]);
+      
+      // Collect unique categories from all results
+      const allCategories = new Set<string>();
+      allResults.forEach(result => {
+        if (result.categories && Array.isArray(result.categories)) {
+          result.categories.forEach(category => allCategories.add(category));
+        }
+      });
+      
+      mergedResult = {
+        metrics: mergedMetrics,
+        recommendations: bestResult.recommendations,
+        summary: bestResult.summary,
+        detailedAnalysis: bestResult.detailedAnalysis,
+        categories: Array.from(allCategories),
+        patientInfo: mergedPatientInfo,
+        modelUsed: allResults.map(r => r.modelUsed).join(", ")
+      };
+    } else {
+      // Just use the single result
+      mergedResult = allResults[0];
+    }
+    
+    const modelNames = mergedResult.modelUsed?.split(',').map(m => m.split('/').pop()).join(", ") || 
+                       primaryModel.split('/').pop();
+    
+    toast({
+      title: "Analysis Complete",
+      description: `Health report analyzed successfully using ${modelNames} (${mergedResult.metrics.length} parameters found)`,
+    });
+    
+    // Remove all historical data by storing only the current report
+    localStorage.removeItem('scannedReports');
+    
+    return mergedResult;
   } catch (error) {
     console.error("Error analyzing health report:", error);
     toast({

@@ -20,6 +20,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState<"ocr" | "analysis">("ocr");
+  const [processingDetail, setProcessingDetail] = useState<string>("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -39,6 +40,9 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
     setIsUploading(true);
     setUploadProgress(0);
 
+    // Clear any existing data
+    localStorage.removeItem('scannedReports');
+
     // Simulate file upload progress
     const interval = setInterval(() => {
       setUploadProgress(prev => {
@@ -47,6 +51,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
           setIsUploading(false);
           setIsProcessing(true);
           setProcessingStage("ocr");
+          setProcessingDetail("Preparing document for analysis...");
           processFile(files[0]);
           return 100;
         }
@@ -59,6 +64,13 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
     try {
       // Step 1: Perform OCR on the uploaded file
       setProcessingStage("ocr");
+      setProcessingDetail("Extracting text from your document...");
+
+      const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
+      if (useMultipleModels) {
+        setProcessingDetail("Processing with multiple AI models for better text extraction...");
+      }
+
       const ocrResult = await performOCR(file);
       
       if (!ocrResult) {
@@ -73,6 +85,12 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
 
       // Step 2: Analyze the extracted text
       setProcessingStage("analysis");
+      setProcessingDetail("Analyzing parameters and reference ranges...");
+      
+      if (useMultipleModels) {
+        setProcessingDetail("Using multiple AI models to comprehensively analyze all health metrics...");
+      }
+      
       const analysisResults = await analyzeHealthReport(ocrResult.text);
       
       if (!analysisResults) {
@@ -101,7 +119,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         summary: analysisResults.summary,
         detailedAnalysis: analysisResults.detailedAnalysis,
         categories: analysisResults.categories || [],
-        patientInfo: analysisResults.patientInfo || {}
+        patientInfo: analysisResults.patientInfo || {},
+        modelUsed: analysisResults.modelUsed || ocrResult.modelUsed || "Unknown"
       };
 
       // Store only the current report (removes history as requested)
@@ -121,7 +140,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       
       toast({
         title: "Analysis Complete",
-        description: `Found ${highRiskMetrics.length} high risk and ${mediumRiskMetrics.length} medium risk parameters that require attention.`,
+        description: `Found ${analysisResults.metrics.length} parameters with ${highRiskMetrics.length} high risk and ${mediumRiskMetrics.length} medium risk items that require attention.`,
       });
 
       // Navigate to the new report
@@ -189,9 +208,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
                   : "Analyzing all parameters in your health data..."}
               </p>
               <p className="text-xs text-center text-muted-foreground">
-                {processingStage === "ocr"
-                  ? "Our AI is reading and extracting all text and values from your document"
-                  : "Our AI is identifying all health metrics, ranges, and generating detailed recommendations"}
+                {processingDetail}
               </p>
             </div>
           )}
@@ -201,7 +218,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               <p>Supported formats: PDF, JPG, PNG</p>
               <p>Maximum file size: 10MB</p>
               <p>Your data is securely processed and never shared</p>
-              <p className="mt-2 text-xs italic">All parameters including reference ranges will be extracted</p>
+              <p className="mt-2 text-xs italic">All parameters including reference ranges will be extracted and matched using the original terminology</p>
             </div>
           )}
         </div>

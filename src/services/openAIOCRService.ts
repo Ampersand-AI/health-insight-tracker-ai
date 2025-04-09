@@ -11,12 +11,18 @@ async function performOCRWithModel(file: File, model: string, apiKey: string): P
   try {
     console.log(`Attempting OCR with model: ${model} for file: ${file.name} (${file.type}, ${file.size} bytes)`);
     
-    // Convert the file to base64
-    const base64File = await fileToBase64(file);
-    console.log("Successfully converted file to base64");
+    // Convert the file to base64 - improved conversion handling
+    let base64File;
+    try {
+      base64File = await fileToBase64(file);
+      console.log("Successfully converted file to base64");
+    } catch (error) {
+      console.error("Error converting file to base64:", error);
+      throw new Error("Failed to convert file to base64");
+    }
     
     // Prepare the prompt with more specific instructions
-    const prompt = `Please analyze this image and extract ALL the text content from it. This is a health report or medical lab result document.
+    const prompt = `Please analyze this image or PDF and extract ALL the text content from it. This is a health report or medical lab result document.
     
 1. Extract ALL text exactly as it appears, preserving the exact layout and formatting where possible
 2. Include ALL parameter names, values, units, and reference ranges
@@ -27,8 +33,12 @@ async function performOCRWithModel(file: File, model: string, apiKey: string): P
 
 The text extraction needs to be exhaustive and complete, as it will be used for medical analysis.`;
 
-    // Make the API call to OpenRouter
-    console.log("Sending request to OpenRouter API...");
+    // Log more information for debugging
+    console.log(`Sending request to OpenRouter API for model: ${model}`);
+    console.log(`File type: ${file.type}, File size: ${file.size} bytes`);
+    console.log(`Base64 string length: ${base64File.length} characters`);
+    
+    // Make the API call to OpenRouter with improved error handling
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -57,6 +67,7 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     if (!response.ok) {
       const errorData = await response.json();
       console.error(`OpenRouter API error with model ${model}:`, errorData);
+      console.error(`Error details:`, JSON.stringify(errorData, null, 2));
       return null;
     }
 
@@ -70,6 +81,7 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     
     const ocrText = data.choices[0].message.content;
     console.log(`OCR completed successfully with model: ${model}, extracted ${ocrText.length} characters`);
+    console.log(`First 200 chars of extracted text: ${ocrText.substring(0, 200)}...`);
     
     return { 
       text: ocrText,
@@ -128,38 +140,52 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       });
       return null;
     }
+
+    // Try with all models in parallel for better results
+    let allResults: (OCRResult | null)[] = [];
     
-    // Try primary model first
-    let result = await performOCRWithModel(file, primaryModel, apiKey);
-    
-    // If primary model failed and fallback is enabled, try fallback models
-    if (!result && useMultipleModels && fallbackModels.length > 0) {
-      console.log("Primary model OCR failed, trying fallback models");
-      
+    if (useMultipleModels && fallbackModels.length > 0) {
+      console.log("Using multiple models for OCR");
       toast({
-        title: "Trying Alternative Models",
-        description: "Primary model OCR failed. Trying fallback models...",
+        title: "Processing with Multiple Models",
+        description: "Analyzing your document with multiple AI models for better results...",
       });
       
-      for (const fallbackModel of fallbackModels) {
-        result = await performOCRWithModel(file, fallbackModel, apiKey);
-        if (result) {
-          console.log(`Successfully performed OCR with fallback model: ${fallbackModel}`);
-          break;
-        }
-      }
+      // Start with primary model
+      const primaryPromise = performOCRWithModel(file, primaryModel, apiKey);
+      
+      // Create promises for all fallback models
+      const fallbackPromises = fallbackModels.map(model => 
+        performOCRWithModel(file, model, apiKey)
+      );
+      
+      // Execute all promises in parallel
+      allResults = await Promise.all([primaryPromise, ...fallbackPromises]);
+    } else {
+      // Just use primary model
+      const result = await performOCRWithModel(file, primaryModel, apiKey);
+      allResults = [result];
     }
     
-    if (result) {
-      const modelName = result.modelUsed?.split('/').pop() || primaryModel.split('/').pop();
-      toast({
-        title: "OCR Completed",
-        description: `Document processed using ${modelName}`,
-      });
-      return result;
-    } else {
+    // Filter out failed results
+    const successfulResults = allResults.filter(result => result !== null) as OCRResult[];
+    
+    if (successfulResults.length === 0) {
       throw new Error("All models failed to process the document");
     }
+    
+    // Find the result with the most text
+    const bestResult = successfulResults.reduce((best, current) => {
+      return (current.text.length > best.text.length) ? current : best;
+    }, successfulResults[0]);
+    
+    const modelName = bestResult.modelUsed?.split('/').pop() || primaryModel.split('/').pop();
+    toast({
+      title: "OCR Completed",
+      description: `Document processed using ${modelName} (${successfulResults.length} of ${allResults.length} models succeeded)`,
+    });
+    
+    return bestResult;
   } catch (error) {
     console.error("Error performing OCR:", error);
     toast({
@@ -173,16 +199,32 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    console.log(`Starting file to base64 conversion for file: ${file.name} (${file.type}, ${file.size} bytes)`);
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    
     reader.onload = () => {
+      console.log("FileReader onload event triggered");
       if (typeof reader.result === 'string') {
+        console.log(`Base64 conversion successful, string length: ${reader.result.length}`);
         resolve(reader.result);
       } else {
+        console.error("FileReader result is not a string:", reader.result);
         reject(new Error('Failed to convert file to base64'));
       }
     };
-    reader.onerror = error => reject(error);
+    
+    reader.onerror = (error) => {
+      console.error("FileReader error:", error);
+      reject(error);
+    };
+    
+    reader.onabort = () => {
+      console.error("FileReader aborted");
+      reject(new Error('File reading aborted'));
+    };
+    
+    console.log("Calling readAsDataURL on FileReader");
+    reader.readAsDataURL(file);
   });
 }
 
@@ -190,8 +232,6 @@ function fileToBase64(file: File): Promise<string> {
 export function clearAllData(): void {
   console.log("Clearing all stored health data");
   localStorage.removeItem('scannedReports');
-  toast({
-    title: "Data Cleared",
-    description: "All health data has been removed from your device.",
-  });
+  // Don't show toast here as it might be confusing during the upload process
 }
+
