@@ -7,8 +7,8 @@ import { FileUploader } from "./FileUploader";
 import { Progress } from "@/components/ui/progress";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
-import { performOCR } from "@/services/geminiService";
-import { analyzeHealthReport } from "@/services/openRouterService";
+import { performOCR } from "@/services/openAIOCRService";
+import { analyzeHealthReport } from "@/services/openAIService";
 
 interface UploadReportDialogProps {
   open: boolean;
@@ -25,6 +25,16 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
 
   const handleFileUpload = (files: File[]) => {
     if (files.length === 0) return;
+
+    const apiKey = localStorage.getItem("openai_api_key");
+    if (!apiKey) {
+      toast({
+        title: "API Key Missing",
+        description: "Please add your OpenAI API key in the settings first.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsUploading(true);
     setUploadProgress(0);
@@ -162,8 +172,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               </div>
               <p className="text-center">
                 {processingStage === "ocr" 
-                  ? "Extracting text from your report with Gemini OCR..." 
-                  : "Analyzing your health data with OpenRouter AI..."}
+                  ? "Extracting text from your report with OpenAI GPT-4o..." 
+                  : "Analyzing your health data with OpenAI GPT-4o..."}
               </p>
               <p className="text-xs text-center text-muted-foreground">
                 {processingStage === "ocr"

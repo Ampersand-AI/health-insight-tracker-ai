@@ -8,7 +8,7 @@ import { RecentReports } from "@/components/dashboard/RecentReports";
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Activity, Calendar, FileText, Upload, TrendingUp, BarChart3 } from "lucide-react";
-import { HealthMetric } from "@/services/openRouterService";
+import { HealthMetric } from "@/services/openAIService";
 
 interface Report {
   id: string;
@@ -18,7 +18,6 @@ interface Report {
 const Dashboard = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [recentMetrics, setRecentMetrics] = useState<HealthMetric[]>([]);
-  const { toast } = useToast();
   
   useEffect(() => {
     // Get the most recent report metrics from localStorage
