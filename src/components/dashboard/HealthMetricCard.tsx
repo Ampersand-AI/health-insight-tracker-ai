@@ -9,6 +9,7 @@ interface HealthMetricCardProps {
   status: "normal" | "warning" | "danger";
   change?: number;
   description: string;
+  range?: string;
 }
 
 export function HealthMetricCard({ 
@@ -17,7 +18,8 @@ export function HealthMetricCard({
   unit, 
   status, 
   change, 
-  description 
+  description,
+  range
 }: HealthMetricCardProps) {
   // Handle value if it's an object
   const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
@@ -96,6 +98,11 @@ export function HealthMetricCard({
             <span className="ml-1 text-sm text-muted-foreground">{unit}</span>
           </div>
         </div>
+        {range && (
+          <div className="mt-1 text-xs text-muted-foreground">
+            Reference range: {range}
+          </div>
+        )}
         <div className="mt-2">
           {getChangeIndicator()}
         </div>

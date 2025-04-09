@@ -100,7 +100,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         rawText: ocrResult.text,
         summary: analysisResults.summary,
         detailedAnalysis: analysisResults.detailedAnalysis,
-        categories: analysisResults.categories || []
+        categories: analysisResults.categories || [],
+        patientInfo: analysisResults.patientInfo || {}
       };
 
       // Store only the current report (removes history as requested)

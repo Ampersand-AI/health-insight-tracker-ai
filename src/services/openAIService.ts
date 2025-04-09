@@ -15,6 +15,18 @@ export interface HealthMetric {
   category?: string;
 }
 
+export interface PatientInfo {
+  name?: string;
+  age?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  patientId?: string;
+  collectionDate?: string;
+  reportDate?: string;
+  doctorName?: string;
+  hospitalName?: string;
+}
+
 export interface AnalysisResult {
   metrics: HealthMetric[];
   recommendations: string[];
@@ -22,6 +34,7 @@ export interface AnalysisResult {
   detailedAnalysis?: string;
   modelUsed?: string;
   categories?: string[];
+  patientInfo?: PatientInfo;
 }
 
 async function analyzeWithModel(ocrText: string, model: string, apiKey: string): Promise<AnalysisResult | null> {
@@ -41,14 +54,30 @@ async function analyzeWithModel(ocrText: string, model: string, apiKey: string):
         messages: [
           {
             role: "system", 
-            content: `You are a medical assistant specializing in analyzing blood test results. Extract ALL relevant health metrics in detail. For each metric:
-1. Determine its status: 'normal' if within range, 'warning' if slightly outside range, or 'danger' if significantly outside range
-2. Provide a detailed description of what the parameter measures and its significance
-3. Include reference ranges for each parameter
-4. Categorize each parameter (e.g., "Electrolytes", "Lipids", "Liver Function", "Kidney Function", "Blood Cell Counts", etc.)
+            content: `You are a medical assistant specializing in analyzing health reports and lab results. Extract ALL relevant information in detail:
+
+1. Patient Information: Extract any patient details (name, ID, gender, date of birth, collection date).
+2. Health Metrics: For EVERY single parameter mentioned in the report:
+   - Extract the exact parameter name AS SHOWN in the report (maintain original terminology)
+   - Extract the value and unit exactly as shown
+   - Extract the reference range exactly as shown
+   - Determine status: 'normal' if within range, 'warning' if slightly outside, 'danger' if significantly outside
+   - Provide a detailed description of what each parameter measures
+   - Categorize each parameter (e.g., "Electrolytes", "Lipids", "Liver Function", etc.)
 
 Format your response as valid JSON with the structure:
 {
+  "patientInfo": {
+    "name": string,
+    "age": string,
+    "gender": string,
+    "dateOfBirth": string,
+    "patientId": string,
+    "collectionDate": string,
+    "reportDate": string,
+    "doctorName": string,
+    "hospitalName": string
+  },
   "metrics": [
     {
       "name": string,
@@ -66,11 +95,11 @@ Format your response as valid JSON with the structure:
   "categories": [string]
 }
 
-The detailedAnalysis should provide a comprehensive assessment of overall health based on the test results, highlighting any potential areas of concern, probable causes of abnormal results, and their clinical significance. Extract EVERY parameter mentioned in the report, even if it seems unimportant.`
+The detailedAnalysis should provide a comprehensive assessment of overall health based on the test results. Extract EVERY parameter mentioned, even rare ones, using EXACTLY the same terminology used in the report. DO NOT skip any parameters.`
           },
           {
             role: "user", 
-            content: `Analyze this blood test result. Extract ALL metrics mentioned in the report (even rare or unusual ones), including their reference ranges: ${ocrText}`
+            content: `Analyze this health report/lab result. Extract ALL metrics mentioned, patient details, and reference ranges: ${ocrText}`
           }
         ],
         temperature: 0.1,
@@ -116,6 +145,7 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
         // If we couldn't parse proper JSON or the metrics are missing, create a basic structure
         analysisContent = {
           metrics: [],
+          patientInfo: {},
           recommendations: ["Unable to extract specific metrics from this report format. Please consult your healthcare provider for interpretation."],
           summary: "The analysis could not extract structured metrics from this report format.",
           detailedAnalysis: "The report format could not be properly parsed into structured metrics. The OCR text has been preserved for reference."
@@ -129,6 +159,7 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
       // Return a basic structure if parsing fails
       return {
         metrics: [],
+        patientInfo: {},
         recommendations: ["Unable to analyze the report format. Please consult your healthcare provider for interpretation."],
         summary: "The analysis encountered an error when processing this report.",
         detailedAnalysis: "There was an error processing the report content. The OCR text has been preserved for reference.",
@@ -162,6 +193,7 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
       summary: analysisContent.summary || "",
       detailedAnalysis: analysisContent.detailedAnalysis || "",
       categories: analysisContent.categories || [],
+      patientInfo: analysisContent.patientInfo || {},
       modelUsed: model
     };
   } catch (error) {

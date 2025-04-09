@@ -1,17 +1,18 @@
 
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { UploadReportDialog } from "@/components/upload/UploadReportDialog";
 import { HealthMetricCard } from "@/components/dashboard/HealthMetricCard";
 import { RecentReports } from "@/components/dashboard/RecentReports";
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { Activity, AlertTriangle, Calendar, FileText, Upload, TrendingUp, BarChart3, Trash2, AlertCircle, Shield } from "lucide-react";
-import { HealthMetric, clearAllHealthData } from "@/services/openAIService";
+import { Activity, AlertTriangle, Calendar, FileText, Upload, TrendingUp, BarChart3, Trash2, AlertCircle, Shield, User, FileHeart, Calendar as CalendarIcon, Building } from "lucide-react";
+import { HealthMetric, PatientInfo, clearAllHealthData } from "@/services/openAIService";
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 interface Report {
   id: string;
@@ -19,6 +20,9 @@ interface Report {
   summary?: string;
   detailedAnalysis?: string;
   categories?: string[];
+  patientInfo?: PatientInfo;
+  title?: string;
+  date?: string;
 }
 
 const Dashboard = () => {
@@ -29,6 +33,9 @@ const Dashboard = () => {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasReports, setHasReports] = useState(false);
   const [summary, setSummary] = useState<string | undefined>();
+  const [patientInfo, setPatientInfo] = useState<PatientInfo | undefined>();
+  const [reportTitle, setReportTitle] = useState<string>("");
+  const [reportDate, setReportDate] = useState<string>("");
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -72,6 +79,11 @@ const Dashboard = () => {
           
           // Set summary if available
           setSummary(parsedReports[0].summary);
+          
+          // Set patient info and report details
+          setPatientInfo(parsedReports[0].patientInfo);
+          setReportTitle(parsedReports[0].title || "Health Report");
+          setReportDate(parsedReports[0].date || new Date().toISOString());
         }
       } catch (error) {
         console.error("Error parsing reports:", error);
@@ -103,14 +115,18 @@ const Dashboard = () => {
     setLowRiskMetrics([]);
     setHasReports(false);
     setSummary(undefined);
+    setPatientInfo(undefined);
   };
 
-  const getRiskColor = (status: "normal" | "warning" | "danger") => {
-    switch (status) {
-      case "normal": return "bg-green-500/10 border-green-500";
-      case "warning": return "bg-amber-500/10 border-amber-500";
-      case "danger": return "bg-destructive/10 border-destructive";
-      default: return "bg-muted/10 border-muted";
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
     }
   };
 
@@ -122,7 +138,7 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold">Health Dashboard</h1>
             <p className="text-muted-foreground mt-1 flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
-              Last updated: {new Date().toLocaleDateString()}
+              {reportDate ? `Report date: ${formatDate(reportDate)}` : "No report uploaded yet"}
             </p>
           </div>
           <div className="mt-4 md:mt-0 flex gap-2">
@@ -168,6 +184,93 @@ const Dashboard = () => {
 
         {hasReports && (
           <>
+            {patientInfo && Object.values(patientInfo).some(val => val) && (
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <User className="mr-2 h-5 w-5" />
+                    Patient Information
+                  </CardTitle>
+                  <CardDescription>
+                    {reportTitle}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {patientInfo.name && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Patient Name</p>
+                          <p className="text-sm text-muted-foreground">{patientInfo.name}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {patientInfo.patientId && (
+                      <div className="flex items-center gap-2">
+                        <FileHeart className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Patient ID</p>
+                          <p className="text-sm text-muted-foreground">{patientInfo.patientId}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {patientInfo.gender && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Gender</p>
+                          <p className="text-sm text-muted-foreground">{patientInfo.gender}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {(patientInfo.dateOfBirth || patientInfo.age) && (
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Date of Birth / Age</p>
+                          <p className="text-sm text-muted-foreground">{patientInfo.dateOfBirth || patientInfo.age}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {patientInfo.collectionDate && (
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Collection Date</p>
+                          <p className="text-sm text-muted-foreground">{patientInfo.collectionDate}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {patientInfo.hospitalName && (
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Hospital/Lab</p>
+                          <p className="text-sm text-muted-foreground">{patientInfo.hospitalName}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {patientInfo.doctorName && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Doctor</p>
+                          <p className="text-sm text-muted-foreground">{patientInfo.doctorName}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {summary && (
               <Card className="mb-6">
                 <CardHeader>
@@ -230,7 +333,8 @@ const Dashboard = () => {
                         value={typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value} 
                         unit={metric.unit} 
                         status={metric.status} 
-                        description={`Outside normal range: ${metric.range} ${metric.unit}`} 
+                        description={`Outside normal range`} 
+                        range={metric.range}
                       />
                     ))
                   ) : (
@@ -255,7 +359,8 @@ const Dashboard = () => {
                         value={typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value} 
                         unit={metric.unit} 
                         status={metric.status} 
-                        description={`Outside normal range: ${metric.range} ${metric.unit}`} 
+                        description={`Outside normal range`}
+                        range={metric.range}
                       />
                     ))
                   ) : (
@@ -280,7 +385,8 @@ const Dashboard = () => {
                         value={typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value} 
                         unit={metric.unit} 
                         status={metric.status} 
-                        description={`Within normal range: ${metric.range} ${metric.unit}`} 
+                        description={`Within normal range`}
+                        range={metric.range}
                       />
                     ))
                   ) : (

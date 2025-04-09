@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { HelpCircle, Filter } from "lucide-react";
+import { HelpCircle, Filter, Search } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -81,13 +81,14 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <div className="flex-1">
+        <div className="flex-1 relative">
           <Input
             placeholder="Search parameters..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
+            className="w-full pl-9"
           />
+          <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
         </div>
         <div className="w-full md:w-64">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -137,7 +138,12 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
                         <div className="text-xs text-muted-foreground mt-1">{metric.category}</div>
                       )}
                     </TableCell>
-                    <TableCell>{formatValue(metric.value)}</TableCell>
+                    <TableCell className={`font-medium ${
+                      metric.status === "danger" ? "text-destructive" :
+                      metric.status === "warning" ? "text-amber-500" : ""
+                    }`}>
+                      {formatValue(metric.value)}
+                    </TableCell>
                     <TableCell>{formatValue(metric.unit)}</TableCell>
                     <TableCell>{formatValue(metric.range)}</TableCell>
                     <TableCell>{getStatusBadge(metric.status)}</TableCell>
@@ -167,6 +173,9 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
                         <div className="p-3 text-sm">
                           <h4 className="font-medium mb-1">About {metric.name}</h4>
                           <p className="text-muted-foreground">{metric.description}</p>
+                          <div className="mt-2 text-xs">
+                            <strong>Reference range:</strong> {metric.range} {metric.unit}
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>
