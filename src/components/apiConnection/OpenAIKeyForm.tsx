@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Info, Check, Key, Loader2 } from "lucide-react";
+import { Info, Check, Key, Loader2, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const apiKeySchema = z.object({
   apiKey: z.string().min(1, { message: "Please enter your OpenRouter API key" }),
@@ -22,6 +24,7 @@ export const OpenAIKeyForm = () => {
   const [availableModels, setAvailableModels] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelSelected, setModelSelected] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
     resolver: zodResolver(apiKeySchema),
@@ -47,9 +50,9 @@ export const OpenAIKeyForm = () => {
   // Watch for API key changes to load models
   const apiKey = form.watch("apiKey");
 
-  // Fetch models whenever API key changes
+  // Fetch models whenever API key changes and is not empty
   useEffect(() => {
-    if (apiKey.length > 0) {
+    if (apiKey && apiKey.length > 0) {
       fetchAvailableModels(apiKey);
     }
   }, [apiKey]);
@@ -163,20 +166,57 @@ export const OpenAIKeyForm = () => {
     }
   };
 
-  const handleModelChange = (value: string) => {
-    // Only allow changing the model if it hasn't been selected before
-    if (!modelSelected) {
-      form.setValue("model", value);
-    }
+  const resetApiConfig = () => {
+    setIsResetting(true);
+    
+    // Clear local storage
+    localStorage.removeItem("openrouter_api_key");
+    localStorage.removeItem("openrouter_model");
+    
+    // Reset form
+    form.reset({
+      apiKey: "",
+      model: "anthropic/anthropic-3-haiku-20240307-v1:0"
+    });
+    
+    // Reset state
+    setIsSaved(false);
+    setModelSelected(false);
+    setAvailableModels([]);
+    
+    toast({
+      title: "API Configuration Reset",
+      description: "Your OpenRouter API key and model selection have been reset",
+    });
+    
+    setIsResetting(false);
   };
 
   return (
     <Card className="border-border">
       <CardHeader className="bg-card">
-        <CardTitle className="flex items-center gap-2 text-foreground">
-          <Key className="h-5 w-5" />
-          OpenRouter API Key
-        </CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <Key className="h-5 w-5" />
+            OpenRouter API Key
+          </CardTitle>
+          {isSaved && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={resetApiConfig}
+              disabled={isResetting}
+              className="text-xs h-8"
+            >
+              {isResetting ? (
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              Reset API
+            </Button>
+          )}
+        </div>
         <CardDescription>
           Connect your OpenRouter API key to enable health report scanning and analysis
         </CardDescription>
