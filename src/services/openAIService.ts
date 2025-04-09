@@ -33,7 +33,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
       return null;
     }
 
-    console.log("Analyzing health report with text:", ocrText);
+    console.log("Analyzing health report text");
     
     // Make the API call to OpenAI
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -60,11 +60,15 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorData = await response.json();
+      console.error("OpenAI API error:", errorData);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
     const analysisContent = JSON.parse(data.choices[0].message.content);
+    
+    console.log("Analysis result obtained");
     
     // Add empty history arrays to each metric
     const metricsWithHistory = analysisContent.metrics.map((metric: any) => ({
@@ -81,7 +85,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     console.error("Error analyzing health report:", error);
     toast({
       title: "Analysis Failed",
-      description: "Failed to analyze your health report. Please try again.",
+      description: "Failed to analyze your health report. Please check your API key and try again.",
       variant: "destructive",
     });
     return null;

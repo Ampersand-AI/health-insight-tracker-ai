@@ -65,7 +65,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         setIsProcessing(false);
         toast({
           title: "OCR Failed",
-          description: "Could not extract text from the uploaded report. Please try again.",
+          description: "Could not extract text from the uploaded report. Please check your API key and try again.",
           variant: "destructive",
         });
         return;
@@ -79,7 +79,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         setIsProcessing(false);
         toast({
           title: "Analysis Failed",
-          description: "Could not analyze the text from your report. Please try again.",
+          description: "Could not analyze the text from your report. Please check your API key and try again.",
           variant: "destructive",
         });
         return;

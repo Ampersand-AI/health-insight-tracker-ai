@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Activity, Calendar, FileText, Upload, TrendingUp, BarChart3 } from "lucide-react";
 import { HealthMetric } from "@/services/openAIService";
+import { useNavigate } from "react-router-dom";
 
 interface Report {
   id: string;
@@ -18,8 +19,24 @@ interface Report {
 const Dashboard = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [recentMetrics, setRecentMetrics] = useState<HealthMetric[]>([]);
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
   
   useEffect(() => {
+    // Check if API key is available
+    const apiKey = localStorage.getItem("openai_api_key");
+    setHasApiKey(!!apiKey);
+    
+    if (!apiKey) {
+      // Show a toast prompting the user to add their API key
+      toast({
+        title: "API Key Required",
+        description: "Please add your OpenAI API key in the settings to use the health analysis features.",
+        variant: "destructive",
+      });
+    }
+
     // Get the most recent report metrics from localStorage
     const storedReports = localStorage.getItem('scannedReports');
     if (storedReports) {
@@ -32,9 +49,20 @@ const Dashboard = () => {
         console.error("Error parsing reports:", error);
       }
     }
-  }, []);
+  }, [toast]);
 
   const handleUpload = () => {
+    if (!hasApiKey) {
+      // If no API key is set, redirect to profile page instead
+      toast({
+        title: "API Key Required",
+        description: "Please add your OpenAI API key in settings before uploading reports.",
+        variant: "destructive",
+      });
+      navigate("/profile");
+      return;
+    }
+    
     setIsUploadDialogOpen(true);
   };
 
@@ -57,6 +85,27 @@ const Dashboard = () => {
             <Upload className="h-4 w-4 mr-2" /> Upload Report
           </Button>
         </div>
+
+        {!hasApiKey && (
+          <Card className="mb-8 border-yellow-300 bg-yellow-50">
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="text-yellow-600 mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-yellow-800">API Key Required</h3>
+                <p className="mt-2 text-yellow-700">Please add your OpenAI API key in settings to enable health report scanning and analysis.</p>
+                <Button 
+                  className="mt-4" 
+                  variant="outline" 
+                  onClick={() => navigate("/profile")}
+                >
+                  Go to Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {recentMetrics.length > 0 ? (

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Info, Check, Key } from "lucide-react";
+import { Info, Check, Key, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const apiKeySchema = z.object({
@@ -17,6 +17,7 @@ const apiKeySchema = z.object({
 export const OpenAIKeyForm = () => {
   const { toast } = useToast();
   const [isSaved, setIsSaved] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
     resolver: zodResolver(apiKeySchema),
@@ -40,6 +41,57 @@ export const OpenAIKeyForm = () => {
       title: "API Key Saved",
       description: "Your OpenAI API key has been saved",
     });
+  };
+
+  const testConnection = async () => {
+    const apiKey = form.getValues("apiKey");
+    
+    if (!apiKey) {
+      toast({
+        title: "No API Key",
+        description: "Please enter an API key first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTesting(true);
+
+    try {
+      // Simple request to test the API key validity
+      const response = await fetch("https://api.openai.com/v1/models", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        }
+      });
+
+      setIsTesting(false);
+
+      if (response.ok) {
+        toast({
+          title: "Connection Successful",
+          description: "Your OpenAI API key is valid and working",
+          variant: "default",
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Connection Failed",
+          description: error.error?.message || "Your OpenAI API key appears to be invalid",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setIsTesting(false);
+      console.error("API test error:", error);
+      toast({
+        title: "Connection Failed",
+        description: "Could not connect to OpenAI. Please check your internet connection and try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -102,7 +154,24 @@ export const OpenAIKeyForm = () => {
                 <p className="mt-2 text-xs">This app uses the GPT-4o model for OCR and analysis. You will be charged based on OpenAI's pricing.</p>
               </div>
             </div>
-            <Button type="submit">Save API Key</Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button type="submit">Save API Key</Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={testConnection}
+                disabled={isTesting}
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Testing Connection...
+                  </>
+                ) : (
+                  <>Test Connection</>
+                )}
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>

@@ -21,6 +21,8 @@ export async function performOCR(file: File): Promise<OpenAIOCRResult | null> {
       return null;
     }
     
+    console.log("Starting OCR with file type:", file.type);
+    
     // Make the API call to OpenAI for vision/OCR
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -56,11 +58,13 @@ export async function performOCR(file: File): Promise<OpenAIOCRResult | null> {
     });
     
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorData = await response.json();
+      console.error("OpenAI API error:", errorData);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
     
     const data = await response.json();
-    console.log("OCR result:", { text: data.choices[0].message.content });
+    console.log("OCR result obtained");
     
     return { 
       text: data.choices[0].message.content 
@@ -69,7 +73,7 @@ export async function performOCR(file: File): Promise<OpenAIOCRResult | null> {
     console.error("Error performing OCR:", error);
     toast({
       title: "OCR Failed",
-      description: "Failed to extract text from your document. Please try again.",
+      description: "Failed to extract text from your document. Please check your API key and try again.",
       variant: "destructive",
     });
     return null;
