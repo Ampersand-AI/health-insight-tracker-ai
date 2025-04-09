@@ -27,10 +27,11 @@ export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
     try {
       if (apiType === "nanonets") {
         // Test Nanonets API with a models request
+        // According to Nanonets docs, X-API-Key header should be used instead of Basic Auth
         const response = await fetch("https://app.nanonets.com/api/v2/OCR/Model/", {
           method: "GET",
           headers: {
-            "Authorization": `Basic ${btoa(apiKey + ":")}`,
+            "X-API-Key": apiKey,
             "Content-Type": "application/json"
           }
         });
