@@ -6,7 +6,7 @@ import { Loader } from "lucide-react";
 
 interface ApiKeyTesterProps {
   apiKey: string;
-  apiType: "nanonets" | "openrouter";
+  apiType: "gemini" | "openrouter";
 }
 
 export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
@@ -25,21 +25,19 @@ export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
     setTesting(true);
 
     try {
-      if (apiType === "nanonets") {
-        // Test Nanonets API with a models request
-        // According to Nanonets docs, X-API-Key header should be used instead of Basic Auth
-        const response = await fetch("https://app.nanonets.com/api/v2/OCR/Model/", {
+      if (apiType === "gemini") {
+        // Test Gemini API with a models list request
+        const response = await fetch("https://generativelanguage.googleapis.com/v1/models?key=" + apiKey, {
           method: "GET",
           headers: {
-            "X-API-Key": apiKey,
             "Content-Type": "application/json"
           }
         });
 
         if (response.ok) {
           toast({
-            title: "Nanonets Connection Successful",
-            description: "Your Nanonets API key is valid and working correctly.",
+            title: "Gemini Connection Successful",
+            description: "Your Gemini API key is valid and working correctly.",
           });
         } else {
           throw new Error("Invalid API key or connection failed");
@@ -69,7 +67,7 @@ export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
     } catch (error) {
       console.error(`${apiType} API test error:`, error);
       toast({
-        title: `${apiType === "nanonets" ? "Nanonets" : "OpenRouter"} Connection Failed`,
+        title: `${apiType === "gemini" ? "Gemini" : "OpenRouter"} Connection Failed`,
         description: error instanceof Error ? error.message : "Failed to connect. Please check your API key.",
         variant: "destructive",
       });

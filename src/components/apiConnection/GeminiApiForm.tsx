@@ -14,7 +14,7 @@ const apiKeySchema = z.object({
   apiKey: z.string().min(10, { message: "API key must be at least 10 characters" }),
 });
 
-export const NanonetsApiForm = () => {
+export const GeminiApiForm = () => {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
@@ -26,7 +26,7 @@ export const NanonetsApiForm = () => {
 
   // Load saved API key if available
   useEffect(() => {
-    const savedApiKey = localStorage.getItem("nanonets_api_key");
+    const savedApiKey = localStorage.getItem("gemini_api_key");
     if (savedApiKey) {
       form.setValue("apiKey", savedApiKey);
     }
@@ -34,20 +34,20 @@ export const NanonetsApiForm = () => {
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     // Save API key to localStorage
-    localStorage.setItem("nanonets_api_key", data.apiKey);
+    localStorage.setItem("gemini_api_key", data.apiKey);
     
     toast({
-      title: "Nanonets API Key Saved",
-      description: "Your Nanonets API key has been saved",
+      title: "Gemini API Key Saved",
+      description: "Your Gemini API key has been saved",
     });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Nanonets API Key</CardTitle>
+        <CardTitle>Gemini API Key</CardTitle>
         <CardDescription>
-          Set your Nanonets API key for OCR text extraction from reports
+          Set your Gemini API key for AI text generation and analysis
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -63,10 +63,10 @@ export const NanonetsApiForm = () => {
                     <FormControl>
                       <Input {...field} type="password" />
                     </FormControl>
-                    <ApiKeyTester apiKey={field.value} apiType="nanonets" />
+                    <ApiKeyTester apiKey={field.value} apiType="gemini" />
                   </div>
                   <FormDescription>
-                    Your Nanonets API key is stored securely in your browser. Get a key at <a href="https://nanonets.com" target="_blank" rel="noreferrer" className="text-primary underline">nanonets.com</a>
+                    Your Gemini API key is stored securely in your browser. Get a key at <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-primary underline">Google AI Studio</a>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
