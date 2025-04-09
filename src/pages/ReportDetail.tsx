@@ -11,21 +11,13 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { DetailedMetricsTable } from "@/components/reports/DetailedMetricsTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Download, FileText } from "lucide-react";
-
-interface Metric {
-  name: string;
-  value: number;
-  unit: string;
-  status: string;
-  range: string;
-  history: { date: string; value: number }[];
-}
+import { HealthMetric } from "@/services/openAIService";
 
 interface Report {
   id: string;
   title: string;
   date: string;
-  metrics: Metric[];
+  metrics: HealthMetric[]; // Changed to use HealthMetric from openAIService
   recommendations: string[];
   type: string;
   rawText?: string;
@@ -36,7 +28,7 @@ const ReportDetail = () => {
   const navigate = useNavigate();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
-  const [riskMetrics, setRiskMetrics] = useState<Metric[]>([]);
+  const [riskMetrics, setRiskMetrics] = useState<HealthMetric[]>([]);
   
   useEffect(() => {
     if (!id) return;
@@ -52,7 +44,7 @@ const ReportDetail = () => {
           setReport(foundReport);
           // Filter risk metrics
           const atRiskMetrics = foundReport.metrics.filter(
-            (metric: Metric) => metric.status === "warning" || metric.status === "danger"
+            (metric: HealthMetric) => metric.status === "warning" || metric.status === "danger"
           );
           setRiskMetrics(atRiskMetrics);
         } else {
@@ -94,6 +86,14 @@ const ReportDetail = () => {
       </Layout>
     );
   }
+
+  // Define chart config for the ChartContainer
+  const chartConfig = {
+    default: { color: "hsl(var(--primary))" },
+    normal: { color: "hsl(var(--health-normal))" },
+    warning: { color: "hsl(var(--health-warning))" },
+    danger: { color: "hsl(var(--health-danger))" }
+  };
 
   return (
     <Layout>
@@ -186,7 +186,7 @@ const ReportDetail = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="h-[250px] w-full">
-                      <ChartContainer>
+                      <ChartContainer config={chartConfig}>
                         {metric.history && metric.history.length > 0 ? (
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={metric.history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
