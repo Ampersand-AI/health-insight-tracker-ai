@@ -7,7 +7,8 @@ import { FileUploader } from "./FileUploader";
 import { Progress } from "@/components/ui/progress";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
-import { analyzeHealthReport } from "@/services/geminiService";
+import { performOCR } from "@/services/geminiService";
+import { analyzeHealthReport } from "@/services/openRouterService";
 
 interface UploadReportDialogProps {
   open: boolean;
@@ -17,7 +18,8 @@ interface UploadReportDialogProps {
 export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStage, setProcessingStage] = useState<"ocr" | "analysis">("ocr");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -33,8 +35,9 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         if (prev >= 100) {
           clearInterval(interval);
           setIsUploading(false);
-          setIsAnalyzing(true);
-          processFileWithGemini(files[0]);
+          setIsProcessing(true);
+          setProcessingStage("ocr");
+          processFile(files[0]);
           return 100;
         }
         return prev + 5;
@@ -42,23 +45,38 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
     }, 150);
   };
 
-  const processFileWithGemini = async (file: File) => {
+  const processFile = async (file: File) => {
     try {
-      // Call Gemini API to analyze the health report
-      const analysisResults = await analyzeHealthReport(file);
+      // Step 1: Perform OCR on the uploaded file
+      setProcessingStage("ocr");
+      const ocrResult = await performOCR(file);
+      
+      if (!ocrResult) {
+        setIsProcessing(false);
+        toast({
+          title: "OCR Failed",
+          description: "Could not extract text from the uploaded report. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Step 2: Analyze the extracted text
+      setProcessingStage("analysis");
+      const analysisResults = await analyzeHealthReport(ocrResult.text);
       
       if (!analysisResults) {
-        setIsAnalyzing(false);
+        setIsProcessing(false);
         toast({
           title: "Analysis Failed",
-          description: "Could not analyze the uploaded report. Please try again.",
+          description: "Could not analyze the text from your report. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
       const reportId = uuidv4();
-      const reportType = determineReportType(file.name);
+      const reportType = determineReportType(file.name, ocrResult.text);
       
       // Create a new report with the analysis results
       const newReport = {
@@ -68,7 +86,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         type: reportType,
         status: "Analyzed",
         metrics: analysisResults.metrics,
-        recommendations: analysisResults.recommendations
+        recommendations: analysisResults.recommendations,
+        rawText: ocrResult.text
       };
 
       // Get existing reports or initialize empty array
@@ -80,7 +99,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       // Save to localStorage
       localStorage.setItem('scannedReports', JSON.stringify(updatedReports));
 
-      setIsAnalyzing(false);
+      setIsProcessing(false);
       onOpenChange(false);
       
       toast({
@@ -91,21 +110,23 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       // Navigate to the new report
       navigate(`/report/${reportId}`);
     } catch (error) {
-      console.error("Error processing file with Gemini:", error);
-      setIsAnalyzing(false);
+      console.error("Error processing file:", error);
+      setIsProcessing(false);
       toast({
-        title: "Analysis Error",
-        description: "An error occurred while analyzing your report. Please try again.",
+        title: "Processing Error",
+        description: "An error occurred while processing your report. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const determineReportType = (filename: string): string => {
+  const determineReportType = (filename: string, text: string): string => {
     const lowerName = filename.toLowerCase();
-    if (lowerName.includes('blood')) return 'blood';
-    if (lowerName.includes('cholesterol')) return 'cholesterol';
-    if (lowerName.includes('cbc')) return 'cbc';
+    const lowerText = text.toLowerCase();
+    
+    if (lowerName.includes('blood') || lowerText.includes('blood')) return 'blood';
+    if (lowerName.includes('cholesterol') || lowerText.includes('cholesterol')) return 'cholesterol';
+    if (lowerName.includes('cbc') || lowerText.includes('cbc') || lowerText.includes('complete blood count')) return 'cbc';
     return 'blood'; // Default type
   };
 
@@ -120,7 +141,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {!isUploading && !isAnalyzing && (
+          {!isUploading && !isProcessing && (
             <FileUploader onFilesSelected={handleFileUpload} />
           )}
 
@@ -134,19 +155,25 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
             </div>
           )}
 
-          {isAnalyzing && (
+          {isProcessing && (
             <div className="space-y-4">
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
               </div>
-              <p className="text-center">Analyzing your report with Gemini AI...</p>
+              <p className="text-center">
+                {processingStage === "ocr" 
+                  ? "Extracting text from your report with Gemini OCR..." 
+                  : "Analyzing your health data with OpenRouter AI..."}
+              </p>
               <p className="text-xs text-center text-muted-foreground">
-                Our AI is extracting and analyzing your health data
+                {processingStage === "ocr"
+                  ? "Our AI is reading and extracting the text from your document"
+                  : "Our AI is identifying health metrics and generating recommendations"}
               </p>
             </div>
           )}
 
-          {!isUploading && !isAnalyzing && (
+          {!isUploading && !isProcessing && (
             <div className="text-xs text-muted-foreground">
               <p>Supported formats: PDF, JPG, PNG</p>
               <p>Maximum file size: 10MB</p>
@@ -159,7 +186,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
-            disabled={isUploading || isAnalyzing}
+            disabled={isUploading || isProcessing}
           >
             Cancel
           </Button>

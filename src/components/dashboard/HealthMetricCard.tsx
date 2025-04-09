@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowDown, ArrowUp, Activity, Heart, TrendingUp, TrendingDown } from "lucide-react";
+import { Activity, Heart, TrendingUp, TrendingDown } from "lucide-react";
 
 interface HealthMetricCardProps {
   title: string;

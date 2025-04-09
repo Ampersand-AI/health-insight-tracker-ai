@@ -5,14 +5,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { UploadReportDialog } from "@/components/upload/UploadReportDialog";
 import { HealthMetricCard } from "@/components/dashboard/HealthMetricCard";
 import { RecentReports } from "@/components/dashboard/RecentReports";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Activity, Calendar, FileText, Upload, TrendingUp, BarChart3 } from "lucide-react";
+import { HealthMetric } from "@/services/openRouterService";
+
+interface Report {
+  id: string;
+  metrics: HealthMetric[];
+}
 
 const Dashboard = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [recentMetrics, setRecentMetrics] = useState<HealthMetric[]>([]);
   const { toast } = useToast();
   
+  useEffect(() => {
+    // Get the most recent report metrics from localStorage
+    const storedReports = localStorage.getItem('scannedReports');
+    if (storedReports) {
+      try {
+        const parsedReports = JSON.parse(storedReports) as Report[];
+        if (parsedReports.length > 0 && parsedReports[0].metrics) {
+          setRecentMetrics(parsedReports[0].metrics);
+        }
+      } catch (error) {
+        console.error("Error parsing reports:", error);
+      }
+    }
+  }, []);
+
   const handleUpload = () => {
     setIsUploadDialogOpen(true);
   };
@@ -25,7 +47,7 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">Health Dashboard</h1>
             <p className="text-muted-foreground mt-1 flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
-              Last updated: April 9, 2025
+              Last updated: {new Date().toLocaleDateString()}
             </p>
           </div>
           <Button 
@@ -38,30 +60,29 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <HealthMetricCard 
-            title="Cholesterol" 
-            value="185" 
-            unit="mg/dL" 
-            status="normal" 
-            change={-5}
-            description="Total cholesterol levels" 
-          />
-          <HealthMetricCard 
-            title="Glucose" 
-            value="98" 
-            unit="mg/dL" 
-            status="normal" 
-            change={2}
-            description="Fasting blood glucose" 
-          />
-          <HealthMetricCard 
-            title="Hemoglobin" 
-            value="13.5" 
-            unit="g/dL" 
-            status="warning" 
-            change={-0.8}
-            description="Oxygen-carrying protein" 
-          />
+          {recentMetrics.length > 0 ? (
+            recentMetrics.map((metric) => (
+              <HealthMetricCard 
+                key={metric.name}
+                title={metric.name} 
+                value={metric.value.toString()} 
+                unit={metric.unit} 
+                status={metric.status} 
+                description={`${metric.name} levels in your blood`} 
+              />
+            ))
+          ) : (
+            <Card className="md:col-span-2 lg:col-span-3 p-6 text-center">
+              <div className="flex flex-col items-center justify-center p-6">
+                <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Health Data Yet</h3>
+                <p className="text-muted-foreground mb-4">Upload your first health report to see metrics and insights</p>
+                <Button onClick={handleUpload}>
+                  <Upload className="h-4 w-4 mr-2" /> Upload Health Report
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
