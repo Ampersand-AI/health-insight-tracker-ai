@@ -22,13 +22,13 @@ export interface AnalysisResult {
 
 export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResult | null> {
   try {
-    const apiKey = localStorage.getItem("openai_api_key");
-    const model = localStorage.getItem("openai_model") || "gpt-4o";
+    const apiKey = localStorage.getItem("openrouter_api_key");
+    const model = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     
     if (!apiKey) {
       toast({
         title: "API Key Missing",
-        description: "Please add your OpenAI API key in the settings first.",
+        description: "Please add your OpenRouter API key in the settings first.",
         variant: "destructive",
       });
       return null;
@@ -36,12 +36,13 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
 
     console.log(`Analyzing health report text using model: ${model}`);
     
-    // Make the API call to OpenAI
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Make the API call to OpenRouter
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": window.location.origin
       },
       body: JSON.stringify({
         model: model,
@@ -62,12 +63,24 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("OpenAI API error:", errorData);
-      throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      console.error("OpenRouter API error:", errorData);
+      throw new Error(`OpenRouter API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
-    const analysisContent = JSON.parse(data.choices[0].message.content);
+    let analysisContent;
+    
+    try {
+      // Check if we need to parse the content
+      if (typeof data.choices[0].message.content === 'string') {
+        analysisContent = JSON.parse(data.choices[0].message.content);
+      } else {
+        analysisContent = data.choices[0].message.content;
+      }
+    } catch (error) {
+      console.error("Error parsing JSON response:", error);
+      throw new Error("Invalid response format from OpenRouter");
+    }
     
     console.log("Analysis result obtained");
     

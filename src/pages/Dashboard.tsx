@@ -25,14 +25,14 @@ const Dashboard = () => {
   
   useEffect(() => {
     // Check if API key is available
-    const apiKey = localStorage.getItem("openai_api_key");
+    const apiKey = localStorage.getItem("openrouter_api_key");
     setHasApiKey(!!apiKey);
     
     if (!apiKey) {
       // Show a toast prompting the user to add their API key
       toast({
         title: "API Key Required",
-        description: "Please add your OpenAI API key in the settings to use the health analysis features.",
+        description: "Please add your OpenRouter API key in the settings to use the health analysis features.",
         variant: "destructive",
       });
     }
@@ -56,7 +56,7 @@ const Dashboard = () => {
       // If no API key is set, redirect to profile page instead
       toast({
         title: "API Key Required",
-        description: "Please add your OpenAI API key in settings before uploading reports.",
+        description: "Please add your OpenRouter API key in settings before uploading reports.",
         variant: "destructive",
       });
       navigate("/profile");
@@ -94,7 +94,7 @@ const Dashboard = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800">API Key Required</h3>
-                <p className="mt-2 text-gray-700">Please add your OpenAI API key in settings to enable health report scanning and analysis.</p>
+                <p className="mt-2 text-gray-700">Please add your OpenRouter API key in settings to enable health report scanning and analysis.</p>
                 <Button 
                   className="mt-4 bg-black hover:bg-gray-800 text-white" 
                   onClick={() => navigate("/profile")}

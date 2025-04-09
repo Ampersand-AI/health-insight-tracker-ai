@@ -12,46 +12,88 @@ import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const apiKeySchema = z.object({
-  apiKey: z.string().min(1, { message: "Please enter your OpenAI API key" }),
-  model: z.string().default("gpt-4o"),
+  apiKey: z.string().min(1, { message: "Please enter your OpenRouter API key" }),
+  model: z.string().default("anthropic/claude-3-opus:beta"),
 });
 
 export const OpenAIKeyForm = () => {
   const { toast } = useToast();
   const [isSaved, setIsSaved] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [availableModels, setAvailableModels] = useState<{ id: string; name: string }[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
     resolver: zodResolver(apiKeySchema),
     defaultValues: {
       apiKey: "",
-      model: "gpt-4o",
+      model: "anthropic/claude-3-opus:beta",
     },
   });
 
   useEffect(() => {
-    const savedKey = localStorage.getItem("openai_api_key");
-    const savedModel = localStorage.getItem("openai_model") || "gpt-4o";
+    const savedKey = localStorage.getItem("openrouter_api_key");
+    const savedModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     
     if (savedKey) {
       form.setValue("apiKey", savedKey);
       form.setValue("model", savedModel);
       setIsSaved(true);
+      fetchAvailableModels(savedKey);
     }
   }, [form]);
 
+  const fetchAvailableModels = async (apiKey: string) => {
+    if (!apiKey) return;
+    
+    setIsLoadingModels(true);
+    
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/models", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": window.location.origin,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Format the models data
+        const models = data.data.map((model: any) => ({
+          id: model.id,
+          name: model.name || model.id
+        }));
+        
+        setAvailableModels(models);
+      } else {
+        console.error("Failed to fetch models");
+      }
+    } catch (error) {
+      console.error("Error fetching models:", error);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
-    localStorage.setItem("openai_api_key", data.apiKey);
-    localStorage.setItem("openai_model", data.model);
+    localStorage.setItem("openrouter_api_key", data.apiKey);
+    localStorage.setItem("openrouter_model", data.model);
     setIsSaved(true);
     toast({
       title: "API Key Saved",
-      description: `Your OpenAI API key and model (${data.model}) have been saved`,
+      description: `Your OpenRouter API key and model have been saved`,
     });
+    
+    // Fetch available models when API key is saved
+    fetchAvailableModels(data.apiKey);
   };
 
   const testConnection = async () => {
     const apiKey = form.getValues("apiKey");
+    const model = form.getValues("model");
     
     if (!apiKey) {
       toast({
@@ -65,13 +107,21 @@ export const OpenAIKeyForm = () => {
     setIsTesting(true);
 
     try {
-      // Simple request to test the API key validity
-      const response = await fetch("https://api.openai.com/v1/models", {
-        method: "GET",
+      // Test the connection by making a simple completion request
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        }
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": window.location.origin,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            { role: "user", content: "Hello! This is a test message." }
+          ],
+          max_tokens: 1
+        })
       });
 
       setIsTesting(false);
@@ -79,14 +129,14 @@ export const OpenAIKeyForm = () => {
       if (response.ok) {
         toast({
           title: "Connection Successful",
-          description: "Your OpenAI API key is valid and working",
+          description: "Your OpenRouter API key is valid and working",
           variant: "default",
         });
       } else {
         const error = await response.json();
         toast({
           title: "Connection Failed",
-          description: error.error?.message || "Your OpenAI API key appears to be invalid",
+          description: error.error?.message || "Your OpenRouter API key appears to be invalid",
           variant: "destructive",
         });
       }
@@ -95,7 +145,7 @@ export const OpenAIKeyForm = () => {
       console.error("API test error:", error);
       toast({
         title: "Connection Failed",
-        description: "Could not connect to OpenAI. Please check your internet connection and try again.",
+        description: "Could not connect to OpenRouter. Please check your internet connection and try again.",
         variant: "destructive",
       });
     }
@@ -106,10 +156,10 @@ export const OpenAIKeyForm = () => {
       <CardHeader className="bg-gray-50">
         <CardTitle className="flex items-center gap-2 text-black">
           <Key className="h-5 w-5" />
-          OpenAI API Key
+          OpenRouter API Key
         </CardTitle>
         <CardDescription>
-          Connect your OpenAI API key to enable health report scanning and analysis
+          Connect your OpenRouter API key to enable health report scanning and analysis
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -119,7 +169,7 @@ export const OpenAIKeyForm = () => {
             <div>
               <p className="text-sm text-gray-800 font-medium">API Key Connected</p>
               <p className="text-xs text-gray-700">
-                Your OpenAI API key is saved and ready to use
+                Your OpenRouter API key is saved and ready to use
               </p>
             </div>
           </div>
@@ -132,10 +182,10 @@ export const OpenAIKeyForm = () => {
               name="apiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>OpenAI API Key</FormLabel>
+                  <FormLabel>OpenRouter API Key</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="sk-..."
+                      placeholder="sk-or-..."
                       type="password"
                       autoComplete="off"
                       className="border-gray-300 focus:border-gray-500 focus:ring-gray-500"
@@ -155,7 +205,7 @@ export const OpenAIKeyForm = () => {
               name="model"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>OpenAI Model</FormLabel>
+                  <FormLabel>Model</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="border-gray-300 focus:border-gray-500 focus:ring-gray-500">
@@ -163,13 +213,31 @@ export const OpenAIKeyForm = () => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="gpt-4o">GPT-4o (Recommended)</SelectItem>
-                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Faster, less expensive)</SelectItem>
-                      <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview (Most powerful)</SelectItem>
+                      {isLoadingModels ? (
+                        <div className="p-2 text-center">
+                          <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                          <p className="text-xs mt-1">Loading models...</p>
+                        </div>
+                      ) : availableModels.length > 0 ? (
+                        availableModels.map(model => (
+                          <SelectItem key={model.id} value={model.id}>
+                            {model.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="anthropic/claude-3-opus:beta">Claude 3 Opus</SelectItem>
+                          <SelectItem value="anthropic/claude-3-sonnet:beta">Claude 3 Sonnet</SelectItem>
+                          <SelectItem value="anthropic/claude-3-haiku:beta">Claude 3 Haiku</SelectItem>
+                          <SelectItem value="openai/gpt-4o">GPT-4o</SelectItem>
+                          <SelectItem value="openai/gpt-4o-mini">GPT-4o Mini</SelectItem>
+                          <SelectItem value="google/gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    GPT-4o is recommended for best results in health report analysis
+                    Choose a model for processing your health reports
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -179,14 +247,14 @@ export const OpenAIKeyForm = () => {
             <div className="flex items-start p-4 border border-gray-200 bg-gray-50 rounded-md">
               <Info className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
               <div className="text-sm text-gray-800">
-                <p>To get an OpenAI API key:</p>
+                <p>To get an OpenRouter API key:</p>
                 <ol className="list-decimal list-inside mt-1 text-xs space-y-1 ml-1">
-                  <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="underline">platform.openai.com/api-keys</a></li>
+                  <li>Go to <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="underline">openrouter.ai/keys</a></li>
                   <li>Create an account or log in</li>
                   <li>Create a new API key</li>
                   <li>Copy and paste it here</li>
                 </ol>
-                <p className="mt-2 text-xs">This app uses OpenAI for OCR and analysis. You will be charged based on OpenAI's pricing.</p>
+                <p className="mt-2 text-xs">This app uses OpenRouter for OCR and analysis. You will be charged based on OpenRouter's pricing.</p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">

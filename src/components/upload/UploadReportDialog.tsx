@@ -26,11 +26,11 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
   const handleFileUpload = (files: File[]) => {
     if (files.length === 0) return;
 
-    const apiKey = localStorage.getItem("openai_api_key");
+    const apiKey = localStorage.getItem("openrouter_api_key");
     if (!apiKey) {
       toast({
         title: "API Key Missing",
-        description: "Please add your OpenAI API key in the settings first.",
+        description: "Please add your OpenRouter API key in the settings first.",
         variant: "destructive",
       });
       return;
@@ -172,8 +172,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               </div>
               <p className="text-center">
                 {processingStage === "ocr" 
-                  ? "Extracting text from your report with OpenAI GPT-4o..." 
-                  : "Analyzing your health data with OpenAI GPT-4o..."}
+                  ? "Extracting text from your report with OpenRouter..." 
+                  : "Analyzing your health data with OpenRouter..."}
               </p>
               <p className="text-xs text-center text-muted-foreground">
                 {processingStage === "ocr"
