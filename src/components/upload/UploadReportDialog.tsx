@@ -97,24 +97,26 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         status: "Analyzed",
         metrics: analysisResults.metrics,
         recommendations: analysisResults.recommendations,
-        rawText: ocrResult.text
+        rawText: ocrResult.text,
+        summary: analysisResults.summary
       };
 
-      // Get existing reports or initialize empty array
-      const existingReports = JSON.parse(localStorage.getItem('scannedReports') || '[]');
-      
-      // Add new report to the beginning of the array
-      const updatedReports = [newReport, ...existingReports];
-      
-      // Save to localStorage
-      localStorage.setItem('scannedReports', JSON.stringify(updatedReports));
+      // Clear existing reports to start fresh (as requested)
+      localStorage.setItem('scannedReports', JSON.stringify([newReport]));
 
       setIsProcessing(false);
       onOpenChange(false);
       
+      // Count risk metrics
+      const riskMetrics = analysisResults.metrics.filter(
+        metric => metric.status === "warning" || metric.status === "danger"
+      );
+      
       toast({
         title: "Analysis Complete",
-        description: analysisResults.summary || "Your report has been successfully analyzed and added to your dashboard.",
+        description: riskMetrics.length > 0 
+          ? `Found ${riskMetrics.length} parameters that require attention.` 
+          : "All parameters are within normal ranges.",
       });
 
       // Navigate to the new report

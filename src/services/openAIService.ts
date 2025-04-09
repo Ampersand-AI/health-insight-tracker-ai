@@ -36,7 +36,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
 
     console.log(`Analyzing health report text using model: ${model}`);
     
-    // Make the API call to OpenRouter
+    // Make the API call to OpenRouter with a more detailed prompt
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -49,14 +49,14 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
         messages: [
           {
             role: "system", 
-            content: "You are a medical assistant specializing in analyzing blood test results. Extract relevant health metrics, provide recommendations, and a brief summary. Format your response as valid JSON with the structure: {\"metrics\": [{\"name\": string, \"value\": number, \"unit\": string, \"status\": \"normal\"|\"warning\"|\"danger\", \"range\": string}], \"recommendations\": [string], \"summary\": string}"
+            content: "You are a medical assistant specializing in analyzing blood test results. Extract ALL relevant health metrics in detail. For each metric, determine its status: 'normal' if within range, 'warning' if slightly outside range, or 'danger' if significantly outside range. Format your response as valid JSON with the structure: {\"metrics\": [{\"name\": string, \"value\": number, \"unit\": string, \"status\": \"normal\"|\"warning\"|\"danger\", \"range\": string, \"description\": string}], \"recommendations\": [string], \"summary\": string}"
           },
           {
             role: "user", 
-            content: `Analyze this blood test result and extract the metrics, provide health recommendations, and a brief summary: ${ocrText}`
+            content: `Analyze this blood test result. Extract ALL metrics mentioned in the report, including reference ranges. Format as JSON: ${ocrText}`
           }
         ],
-        temperature: 0.3,
+        temperature: 0.1,
         response_format: { type: "json_object" }
       })
     });
@@ -77,6 +77,8 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
       } else {
         analysisContent = data.choices[0].message.content;
       }
+      
+      console.log("Analysis result:", analysisContent);
     } catch (error) {
       console.error("Error parsing JSON response:", error);
       throw new Error("Invalid response format from OpenRouter");
@@ -104,4 +106,13 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     });
     return null;
   }
+}
+
+// Clear all stored health data
+export function clearAllHealthData(): void {
+  localStorage.removeItem('scannedReports');
+  toast({
+    title: "Data Cleared",
+    description: "All health data has been removed from your device.",
+  });
 }

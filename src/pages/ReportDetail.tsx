@@ -8,6 +8,9 @@ import { Separator } from "@/components/ui/separator";
 import { ChartContainer } from "@/components/ui/chart";
 import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { DetailedMetricsTable } from "@/components/reports/DetailedMetricsTable";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, Download, FileText } from "lucide-react";
 
 interface Metric {
   name: string;
@@ -25,25 +28,15 @@ interface Report {
   metrics: Metric[];
   recommendations: string[];
   type: string;
+  rawText?: string;
 }
-
-const chartConfig = {
-  normal: {
-    color: "hsl(var(--health-normal))"
-  },
-  warning: {
-    color: "hsl(var(--health-warning))"
-  },
-  danger: {
-    color: "hsl(var(--health-danger))"
-  }
-};
 
 const ReportDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
+  const [riskMetrics, setRiskMetrics] = useState<Metric[]>([]);
   
   useEffect(() => {
     if (!id) return;
@@ -57,6 +50,11 @@ const ReportDetail = () => {
         
         if (foundReport) {
           setReport(foundReport);
+          // Filter risk metrics
+          const atRiskMetrics = foundReport.metrics.filter(
+            (metric: Metric) => metric.status === "warning" || metric.status === "danger"
+          );
+          setRiskMetrics(atRiskMetrics);
         } else {
           // Report not found
           navigate('/reports');
@@ -67,6 +65,11 @@ const ReportDetail = () => {
     }
     setLoading(false);
   }, [id, navigate]);
+
+  const handleExportPDF = () => {
+    // This would be implemented with a PDF generation library
+    alert("PDF export functionality will be implemented in a future update");
+  };
 
   if (loading) {
     return (
@@ -83,7 +86,7 @@ const ReportDetail = () => {
       <Layout>
         <div className="container mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold">Report Not Found</h1>
-          <p className="mt-4">The report you're looking for doesn't exist or has been removed.</p>
+          <p className="mt-4 text-muted-foreground">The report you're looking for doesn't exist or has been removed.</p>
           <Button className="mt-6" onClick={() => navigate('/reports')}>
             Back to Reports
           </Button>
@@ -92,59 +95,88 @@ const ReportDetail = () => {
     );
   }
 
-  const getStatusClass = (status: string) => {
-    switch(status) {
-      case "normal": return "text-health-normal";
-      case "warning": return "text-health-warning";
-      case "danger": return "text-health-danger";
-      default: return "text-health-normal";
-    }
-  };
-
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">{report.title}</h1>
-          <p className="text-muted-foreground mt-1">
-            Report Date: {new Date(report.date).toLocaleDateString()}
-          </p>
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">{report.title}</h1>
+            <p className="text-muted-foreground mt-1">
+              Report Date: {new Date(report.date).toLocaleDateString()}
+            </p>
+          </div>
+          <Button 
+            className="mt-4 md:mt-0" 
+            variant="outline"
+            onClick={handleExportPDF}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
         </div>
 
-        <Tabs defaultValue="overview" className="mb-8">
+        {riskMetrics.length > 0 && (
+          <Alert className="mb-6 border-destructive/50 bg-destructive/10">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <AlertTitle>Risk Factors Detected</AlertTitle>
+            <AlertDescription>
+              This report contains {riskMetrics.length} parameters that require attention. Please consult with your healthcare provider.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Tabs defaultValue="all-parameters" className="mb-8">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="all-parameters">All Parameters</TabsTrigger>
+            <TabsTrigger value="at-risk">At Risk ({riskMetrics.length})</TabsTrigger>
             <TabsTrigger value="trends">Trends</TabsTrigger>
             <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+            {report.rawText && <TabsTrigger value="raw-text">Raw Text</TabsTrigger>}
           </TabsList>
           
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {report.metrics.map((metric) => (
-                <Card key={metric.name}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xl">{metric.name}</CardTitle>
-                    <CardDescription>Normal Range: {metric.range} {metric.unit}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <span className={`text-3xl font-bold ${getStatusClass(metric.status)}`}>
-                        {metric.value}
-                      </span>
-                      <span className="text-muted-foreground">{metric.unit}</span>
-                    </div>
-                    <p className={`text-sm mt-2 ${getStatusClass(metric.status)}`}>
-                      {metric.status === "normal" && "Within normal range"}
-                      {metric.status === "warning" && "Slightly below normal range"}
-                      {metric.status === "danger" && "Outside normal range"}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          <TabsContent value="all-parameters" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Complete Blood Analysis</CardTitle>
+                <CardDescription>
+                  All parameters extracted from your health report
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DetailedMetricsTable metrics={report.metrics} />
+              </CardContent>
+            </Card>
           </TabsContent>
           
-          <TabsContent value="trends">
+          <TabsContent value="at-risk" className="mt-6">
+            {riskMetrics.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Parameters Requiring Attention</CardTitle>
+                  <CardDescription>
+                    These parameters are outside the normal reference range
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <DetailedMetricsTable metrics={riskMetrics} />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <FileText className="h-12 w-12 text-accent mb-3" />
+                    <h3 className="text-xl font-semibold mb-2">All Parameters Normal</h3>
+                    <p className="text-muted-foreground">
+                      Great news! All parameters in your report are within normal ranges.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="trends" className="mt-6">
             <div className="grid grid-cols-1 gap-6">
               {report.metrics.map((metric) => (
                 <Card key={metric.name}>
@@ -154,7 +186,7 @@ const ReportDetail = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="h-[250px] w-full">
-                      <ChartContainer config={chartConfig}>
+                      <ChartContainer>
                         {metric.history && metric.history.length > 0 ? (
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={metric.history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -190,7 +222,7 @@ const ReportDetail = () => {
             </div>
           </TabsContent>
           
-          <TabsContent value="recommendations">
+          <TabsContent value="recommendations" className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle>AI-Generated Recommendations</CardTitle>
@@ -216,6 +248,24 @@ const ReportDetail = () => {
               </CardContent>
             </Card>
           </TabsContent>
+          
+          {report.rawText && (
+            <TabsContent value="raw-text" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Raw Report Text</CardTitle>
+                  <CardDescription>
+                    Original text extracted from your document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-muted p-4 rounded-md overflow-auto max-h-[500px] whitespace-pre-wrap">
+                    {report.rawText}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </Layout>
