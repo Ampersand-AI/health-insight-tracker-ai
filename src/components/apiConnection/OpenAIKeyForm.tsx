@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Info, Check, Key, Loader2, RefreshCw } from "lucide-react";
+import { Info, Check, Key, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const apiKeySchema = z.object({
   apiKey: z.string().min(1, { message: "Please enter your OpenRouter API key" }),
-  model: z.string().default("anthropic/anthropic-3-haiku-20240307-v1:0"),
+  model: z.string().default("anthropic/claude-3-opus:beta"),
 });
 
 export const OpenAIKeyForm = () => {
@@ -23,39 +22,26 @@ export const OpenAIKeyForm = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [availableModels, setAvailableModels] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [modelSelected, setModelSelected] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
     resolver: zodResolver(apiKeySchema),
     defaultValues: {
       apiKey: "",
-      model: "anthropic/anthropic-3-haiku-20240307-v1:0",
+      model: "anthropic/claude-3-opus:beta",
     },
   });
 
   useEffect(() => {
     const savedKey = localStorage.getItem("openrouter_api_key");
-    const savedModel = localStorage.getItem("openrouter_model") || "anthropic/anthropic-3-haiku-20240307-v1:0";
+    const savedModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     
     if (savedKey) {
       form.setValue("apiKey", savedKey);
       form.setValue("model", savedModel);
       setIsSaved(true);
-      setModelSelected(!!savedModel);
       fetchAvailableModels(savedKey);
     }
   }, [form]);
-
-  // Watch for API key changes to load models
-  const apiKey = form.watch("apiKey");
-
-  // Fetch models whenever API key changes and is not empty
-  useEffect(() => {
-    if (apiKey && apiKey.length > 0) {
-      fetchAvailableModels(apiKey);
-    }
-  }, [apiKey]);
 
   const fetchAvailableModels = async (apiKey: string) => {
     if (!apiKey) return;
@@ -94,16 +80,15 @@ export const OpenAIKeyForm = () => {
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     localStorage.setItem("openrouter_api_key", data.apiKey);
-    
-    // Save the selected model and mark it as selected
     localStorage.setItem("openrouter_model", data.model);
-    setModelSelected(true);
-    
     setIsSaved(true);
     toast({
       title: "API Key Saved",
       description: `Your OpenRouter API key and model have been saved`,
     });
+    
+    // Fetch available models when API key is saved
+    fetchAvailableModels(data.apiKey);
   };
 
   const testConnection = async () => {
@@ -166,68 +151,24 @@ export const OpenAIKeyForm = () => {
     }
   };
 
-  const resetApiConfig = () => {
-    setIsResetting(true);
-    
-    // Clear local storage
-    localStorage.removeItem("openrouter_api_key");
-    localStorage.removeItem("openrouter_model");
-    
-    // Reset form
-    form.reset({
-      apiKey: "",
-      model: "anthropic/anthropic-3-haiku-20240307-v1:0"
-    });
-    
-    // Reset state
-    setIsSaved(false);
-    setModelSelected(false);
-    setAvailableModels([]);
-    
-    toast({
-      title: "API Configuration Reset",
-      description: "Your OpenRouter API key and model selection have been reset",
-    });
-    
-    setIsResetting(false);
-  };
-
   return (
-    <Card className="border-border">
-      <CardHeader className="bg-card">
-        <div className="flex justify-between items-center">
-          <CardTitle className="flex items-center gap-2 text-foreground">
-            <Key className="h-5 w-5" />
-            OpenRouter API Key
-          </CardTitle>
-          {isSaved && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={resetApiConfig}
-              disabled={isResetting}
-              className="text-xs h-8"
-            >
-              {isResetting ? (
-                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3 w-3 mr-1" />
-              )}
-              Reset API
-            </Button>
-          )}
-        </div>
+    <Card className="border-gray-200">
+      <CardHeader className="bg-gray-50">
+        <CardTitle className="flex items-center gap-2 text-black">
+          <Key className="h-5 w-5" />
+          OpenRouter API Key
+        </CardTitle>
         <CardDescription>
           Connect your OpenRouter API key to enable health report scanning and analysis
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
         {isSaved && (
-          <div className="flex items-start p-4 mb-4 border border-border bg-secondary rounded-md">
-            <Check className="h-5 w-5 text-foreground mr-2 mt-0.5" />
+          <div className="flex items-start p-4 mb-4 border border-gray-200 bg-gray-50 rounded-md">
+            <Check className="h-5 w-5 text-gray-700 mr-2 mt-0.5" />
             <div>
-              <p className="text-sm text-foreground font-medium">API Key Connected</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-gray-800 font-medium">API Key Connected</p>
+              <p className="text-xs text-gray-700">
                 Your OpenRouter API key is saved and ready to use
               </p>
             </div>
@@ -247,7 +188,7 @@ export const OpenAIKeyForm = () => {
                       placeholder="sk-or-..."
                       type="password"
                       autoComplete="off"
-                      className="border-input focus:border-ring focus:ring-ring"
+                      className="border-gray-300 focus:border-gray-500 focus:ring-gray-500"
                       {...field}
                     />
                   </FormControl>
@@ -265,13 +206,9 @@ export const OpenAIKeyForm = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Model</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                    disabled={modelSelected}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className="border-input focus:border-ring focus:ring-ring">
+                      <SelectTrigger className="border-gray-300 focus:border-gray-500 focus:ring-gray-500">
                         <SelectValue placeholder="Select a model" />
                       </SelectTrigger>
                     </FormControl>
@@ -289,7 +226,6 @@ export const OpenAIKeyForm = () => {
                         ))
                       ) : (
                         <>
-                          <SelectItem value="anthropic/anthropic-3-haiku-20240307-v1:0">Quasar Alpha</SelectItem>
                           <SelectItem value="anthropic/claude-3-opus:beta">Claude 3 Opus</SelectItem>
                           <SelectItem value="anthropic/claude-3-sonnet:beta">Claude 3 Sonnet</SelectItem>
                           <SelectItem value="anthropic/claude-3-haiku:beta">Claude 3 Haiku</SelectItem>
@@ -301,18 +237,16 @@ export const OpenAIKeyForm = () => {
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    {modelSelected ? 
-                      "Model selected and locked. This cannot be changed." : 
-                      "Choose a model for processing your health reports"}
+                    Choose a model for processing your health reports
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="flex items-start p-4 border border-border bg-secondary rounded-md">
-              <Info className="h-5 w-5 text-muted-foreground mr-2 mt-0.5" />
-              <div className="text-sm text-foreground">
+            <div className="flex items-start p-4 border border-gray-200 bg-gray-50 rounded-md">
+              <Info className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+              <div className="text-sm text-gray-800">
                 <p>To get an OpenRouter API key:</p>
                 <ol className="list-decimal list-inside mt-1 text-xs space-y-1 ml-1">
                   <li>Go to <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="underline">openrouter.ai/keys</a></li>
@@ -324,13 +258,13 @@ export const OpenAIKeyForm = () => {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">Save API Key</Button>
+              <Button type="submit" className="bg-black hover:bg-gray-800 text-white">Save API Key</Button>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={testConnection}
                 disabled={isTesting}
-                className="border-input hover:bg-secondary"
+                className="border-gray-300 hover:bg-gray-100"
               >
                 {isTesting ? (
                   <>

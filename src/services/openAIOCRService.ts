@@ -9,7 +9,7 @@ export interface OCRResult {
 export async function performOCR(file: File): Promise<OCRResult | null> {
   try {
     const apiKey = localStorage.getItem("openrouter_api_key");
-    const model = localStorage.getItem("openrouter_model") || "anthropic/anthropic-3-haiku-20240307-v1:0";
+    const model = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     
     if (!apiKey) {
       toast({

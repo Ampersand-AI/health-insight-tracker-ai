@@ -23,7 +23,7 @@ export interface AnalysisResult {
 export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResult | null> {
   try {
     const apiKey = localStorage.getItem("openrouter_api_key");
-    const model = localStorage.getItem("openrouter_model") || "anthropic/anthropic-3-haiku-20240307-v1:0";
+    const model = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     
     if (!apiKey) {
       toast({
@@ -49,11 +49,11 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
         messages: [
           {
             role: "system", 
-            content: "You are a medical assistant specializing in analyzing blood test results. Extract relevant health metrics, provide recommendations, and a brief summary. For each metric, include the normal reference range. Format your response as valid JSON with the structure: {\"metrics\": [{\"name\": string, \"value\": number, \"unit\": string, \"status\": \"normal\"|\"warning\"|\"danger\", \"range\": string}], \"recommendations\": [string], \"summary\": string}"
+            content: "You are a medical assistant specializing in analyzing blood test results. Extract relevant health metrics, provide recommendations, and a brief summary. Format your response as valid JSON with the structure: {\"metrics\": [{\"name\": string, \"value\": number, \"unit\": string, \"status\": \"normal\"|\"warning\"|\"danger\", \"range\": string}], \"recommendations\": [string], \"summary\": string}"
           },
           {
             role: "user", 
-            content: `Analyze this blood test result and extract the metrics, provide health recommendations, and a brief summary. Include normal reference ranges for each metric: ${ocrText}`
+            content: `Analyze this blood test result and extract the metrics, provide health recommendations, and a brief summary: ${ocrText}`
           }
         ],
         temperature: 0.3,
