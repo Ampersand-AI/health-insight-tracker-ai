@@ -10,11 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-
-const apiKeySchema = z.object({
-  apiKey: z.string().min(10, { message: "API key must be at least 10 characters" }),
-});
+import { useState, useEffect } from "react";
+import { OcrSpaceApiForm } from "@/components/apiConnection/OcrSpaceApiForm";
+import { ApiKeyTester } from "@/components/apiConnection/ApiKeyTester";
 
 const modelSchema = z.object({
   selectedModel: z.string().min(1, { message: "Please select a model" }),
@@ -29,12 +27,16 @@ const notificationsSchema = z.object({
   emailNotifications: z.boolean().default(true),
 });
 
+const openRouterApiSchema = z.object({
+  apiKey: z.string().min(10, { message: "API key must be at least 10 characters" }),
+});
+
 const Profile = () => {
   const { toast } = useToast();
   const [selectedModel, setSelectedModel] = useState("gpt-4o");
 
-  const apiKeyForm = useForm<z.infer<typeof apiKeySchema>>({
-    resolver: zodResolver(apiKeySchema),
+  const openRouterApiForm = useForm<z.infer<typeof openRouterApiSchema>>({
+    resolver: zodResolver(openRouterApiSchema),
     defaultValues: {
       apiKey: "",
     },
@@ -62,9 +64,20 @@ const Profile = () => {
     },
   });
 
-  const onSubmitApiKey = (data: z.infer<typeof apiKeySchema>) => {
+  // Load saved API key if available
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem("openrouter_api_key");
+    if (savedApiKey) {
+      openRouterApiForm.setValue("apiKey", savedApiKey);
+    }
+  }, [openRouterApiForm]);
+
+  const onSubmitOpenRouterApi = (data: z.infer<typeof openRouterApiSchema>) => {
+    // Save API key to localStorage
+    localStorage.setItem("openrouter_api_key", data.apiKey);
+    
     toast({
-      title: "API Key Updated",
+      title: "OpenRouter API Key Updated",
       description: "Your OpenRouter API key has been saved",
     });
   };
@@ -162,6 +175,8 @@ const Profile = () => {
           
           <TabsContent value="api">
             <div className="grid grid-cols-1 gap-6">
+              <OcrSpaceApiForm />
+              
               <Card>
                 <CardHeader>
                   <CardTitle>OpenRouter API Key</CardTitle>
@@ -170,19 +185,22 @@ const Profile = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Form {...apiKeyForm}>
-                    <form onSubmit={apiKeyForm.handleSubmit(onSubmitApiKey)} className="space-y-6">
+                  <Form {...openRouterApiForm}>
+                    <form onSubmit={openRouterApiForm.handleSubmit(onSubmitOpenRouterApi)} className="space-y-6">
                       <FormField
-                        control={apiKeyForm.control}
+                        control={openRouterApiForm.control}
                         name="apiKey"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>API Key</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="password" />
-                            </FormControl>
+                            <div className="flex">
+                              <FormControl>
+                                <Input {...field} type="password" />
+                              </FormControl>
+                              <ApiKeyTester apiKey={field.value} apiType="openrouter" />
+                            </div>
                             <FormDescription>
-                              Your API key is stored securely
+                              Your API key is stored securely in your browser
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
