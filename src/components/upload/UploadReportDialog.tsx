@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -75,37 +74,35 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       setProcessingStage("ocr");
       setProcessingDetail("Processing document with multiple AI models...");
 
-      // Add listener for model success notifications
-      const originalToast = toast;
-      let successCount = 0;
-      let totalModels = 5; // Default expected models
-      
-      // Override toast to track model success/failure
-      (toast as any) = (props: any) => {
-        // Call the original toast
-        originalToast(props);
-        
-        // Track model selection
-        if (props.title === "Models Selected") {
-          const match = props.description.match(/Using (\d+) models/);
-          if (match && match[1]) {
-            totalModels = parseInt(match[1]);
-            setModelsTotal(totalModels);
+      // Create a safe wrapper for toast to avoid readonly property assignment error
+      const safeToast = (props: any) => {
+        try {
+          toast(props);
+          
+          // Track model selection
+          if (props.title === "Models Selected") {
+            const match = props.description.match(/Using (\d+) models/);
+            if (match && match[1]) {
+              const totalModels = parseInt(match[1]);
+              setModelsTotal(totalModels);
+            }
           }
-        }
-        
-        // Count successful models
-        if (props.title && props.title.startsWith("OCR Success:")) {
-          successCount++;
-          setModelsSuccess(successCount);
-          setProcessingDetail(`Successfully processed with ${successCount}/${totalModels} models...`);
+          
+          // Count successful models
+          if (props.title && props.title.startsWith("OCR Success:")) {
+            setModelsSuccess(prevCount => {
+              const newCount = prevCount + 1;
+              setProcessingDetail(`Successfully processed with ${newCount}/${modelsTotal} models...`);
+              return newCount;
+            });
+          }
+        } catch (err) {
+          console.error("Error in toast wrapper:", err);
         }
       };
 
-      const ocrResult = await performOCR(file);
-      
-      // Restore original toast
-      (toast as any) = originalToast;
+      // Perform OCR with safe toast callback
+      const ocrResult = await performOCR(file, safeToast);
       
       if (!ocrResult) {
         setIsProcessing(false);

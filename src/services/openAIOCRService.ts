@@ -32,19 +32,27 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
     // Safely filter models that support vision tasks
     const supportedModels = data.data
       .filter((model: any) => {
-        // Check if capabilities exists and includes vision
-        const hasVisionCapability = model.capabilities && 
-                                   Array.isArray(model.capabilities) && 
-                                   model.capabilities.includes("vision");
-        
-        // Check context length - we need at least 4000 for document analysis
-        const hasEnoughContext = model.context_length && model.context_length >= 4000;
-        
-        // Check if it's free or reasonably priced
-        const isReasonablyPriced = !model.pricing || 
-                                  (model.pricing.prompt && model.pricing.prompt < 0.01);
-        
-        return hasVisionCapability && hasEnoughContext;
+        try {
+          // Check if architecture exists and has the right properties
+          const hasVisionCapability = model.architecture && 
+                                      model.architecture.modality && 
+                                      (model.architecture.modality.includes('image') || 
+                                       (model.architecture.input_modalities && 
+                                        Array.isArray(model.architecture.input_modalities) && 
+                                        model.architecture.input_modalities.includes('image')));
+          
+          // Check context length - we need at least 4000 for document analysis
+          const hasEnoughContext = model.context_length && model.context_length >= 4000;
+          
+          // Check if it's free or reasonably priced
+          const isReasonablyPriced = !model.pricing || 
+                                    (model.pricing.prompt && model.pricing.prompt < 0.01);
+          
+          return hasVisionCapability && hasEnoughContext;
+        } catch (err) {
+          console.error("Error filtering model:", model.id, err);
+          return false;
+        }
       })
       .map((model: any) => model.id);
     
@@ -75,7 +83,7 @@ function getDefaultModels(): string[] {
   ];
 }
 
-async function performOCRWithModel(file: File, model: string, apiKey: string): Promise<OCRResult | null> {
+async function performOCRWithModel(file: File, model: string, apiKey: string, customToast?: Function): Promise<OCRResult | null> {
   try {
     console.log(`Attempting OCR with model: ${model} for file: ${file.name} (${file.type}, ${file.size} bytes)`);
     
@@ -152,7 +160,8 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     console.log(`First 200 chars of extracted text: ${ocrText.substring(0, 200)}...`);
     
     // Notify success for this specific model
-    toast({
+    const toastFn = customToast || toast;
+    toastFn({
       title: `OCR Success: ${model.split('/').pop()}`,
       description: `Successfully extracted ${ocrText.length} characters of text`,
     });
@@ -165,7 +174,8 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     console.error(`Error performing OCR with model ${model}:`, error);
     
     // Notify failure for this specific model
-    toast({
+    const toastFn = customToast || toast;
+    toastFn({
       title: `OCR Failed: ${model.split('/').pop()}`,
       description: "Could not process document with this model",
       variant: "destructive",
@@ -175,7 +185,7 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
   }
 }
 
-export async function performOCR(file: File): Promise<OCRResult | null> {
+export async function performOCR(file: File, customToast?: Function): Promise<OCRResult | null> {
   try {
     // First clear any existing data
     clearAllData();
@@ -213,7 +223,8 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return null;
     }
 
-    toast({
+    const toastFn = customToast || toast;
+    toastFn({
       title: "Selecting Models",
       description: "Automatically selecting best models for document analysis...",
     });
@@ -233,7 +244,7 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
 
     console.log("Selected models for OCR:", modelsToUse);
     
-    toast({
+    toastFn({
       title: "Models Selected",
       description: `Using ${modelsToUse.length} models for comprehensive document analysis`,
     });
@@ -242,21 +253,21 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
     const patientName = extractPatientNameFromFilename(file.name);
     if (patientName) {
       localStorage.setItem('patientName', patientName);
-      toast({
+      toastFn({
         title: "Patient Identified",
         description: `Detected patient name: ${patientName}`,
       });
     }
     
     // Process with all models in parallel for better results
-    toast({
+    toastFn({
       title: "Processing Document",
       description: `Analyzing your document with ${modelsToUse.length} AI models for better results...`,
     });
     
     // Create promises for all models
     const allPromises = modelsToUse.map(model => 
-      performOCRWithModel(file, model, apiKey)
+      performOCRWithModel(file, model, apiKey, customToast)
     );
     
     // Execute requests in parallel
@@ -277,7 +288,7 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
     const successRatio = `${successfulResults.length}/${modelsToUse.length}`;
     const modelNames = successfulResults.map(r => r.modelUsed?.split('/').pop()).join(", ");
     
-    toast({
+    toastFn({
       title: "OCR Complete",
       description: `Document processed successfully (${successRatio} models). Best result from: ${bestResult.modelUsed?.split('/').pop()}`,
     });
