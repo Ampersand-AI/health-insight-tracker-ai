@@ -27,13 +27,13 @@ export const OpenAIKeyForm = () => {
     resolver: zodResolver(apiKeySchema),
     defaultValues: {
       apiKey: "",
-      model: "anthropic/claude-3-opus:beta",
+      model: "anthropic/anthropic-3-haiku-20240307-v1:0",
     },
   });
 
   useEffect(() => {
     const savedKey = localStorage.getItem("openrouter_api_key");
-    const savedModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
+    const savedModel = localStorage.getItem("openrouter_model") || "anthropic/anthropic-3-haiku-20240307-v1:0";
     
     if (savedKey) {
       form.setValue("apiKey", savedKey);
@@ -152,9 +152,9 @@ export const OpenAIKeyForm = () => {
   };
 
   return (
-    <Card className="border-gray-200">
-      <CardHeader className="bg-gray-50">
-        <CardTitle className="flex items-center gap-2 text-black">
+    <Card className="border-border">
+      <CardHeader className="bg-card">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <Key className="h-5 w-5" />
           OpenRouter API Key
         </CardTitle>
@@ -164,11 +164,11 @@ export const OpenAIKeyForm = () => {
       </CardHeader>
       <CardContent className="pt-6">
         {isSaved && (
-          <div className="flex items-start p-4 mb-4 border border-gray-200 bg-gray-50 rounded-md">
-            <Check className="h-5 w-5 text-gray-700 mr-2 mt-0.5" />
+          <div className="flex items-start p-4 mb-4 border border-border bg-secondary rounded-md">
+            <Check className="h-5 w-5 text-foreground mr-2 mt-0.5" />
             <div>
-              <p className="text-sm text-gray-800 font-medium">API Key Connected</p>
-              <p className="text-xs text-gray-700">
+              <p className="text-sm text-foreground font-medium">API Key Connected</p>
+              <p className="text-xs text-muted-foreground">
                 Your OpenRouter API key is saved and ready to use
               </p>
             </div>
@@ -188,7 +188,7 @@ export const OpenAIKeyForm = () => {
                       placeholder="sk-or-..."
                       type="password"
                       autoComplete="off"
-                      className="border-gray-300 focus:border-gray-500 focus:ring-gray-500"
+                      className="border-input focus:border-ring focus:ring-ring"
                       {...field}
                     />
                   </FormControl>
@@ -208,7 +208,7 @@ export const OpenAIKeyForm = () => {
                   <FormLabel>Model</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className="border-gray-300 focus:border-gray-500 focus:ring-gray-500">
+                      <SelectTrigger className="border-input focus:border-ring focus:ring-ring">
                         <SelectValue placeholder="Select a model" />
                       </SelectTrigger>
                     </FormControl>
@@ -226,6 +226,7 @@ export const OpenAIKeyForm = () => {
                         ))
                       ) : (
                         <>
+                          <SelectItem value="anthropic/anthropic-3-haiku-20240307-v1:0">Quasar Alpha</SelectItem>
                           <SelectItem value="anthropic/claude-3-opus:beta">Claude 3 Opus</SelectItem>
                           <SelectItem value="anthropic/claude-3-sonnet:beta">Claude 3 Sonnet</SelectItem>
                           <SelectItem value="anthropic/claude-3-haiku:beta">Claude 3 Haiku</SelectItem>
@@ -244,9 +245,9 @@ export const OpenAIKeyForm = () => {
               )}
             />
 
-            <div className="flex items-start p-4 border border-gray-200 bg-gray-50 rounded-md">
-              <Info className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-              <div className="text-sm text-gray-800">
+            <div className="flex items-start p-4 border border-border bg-secondary rounded-md">
+              <Info className="h-5 w-5 text-muted-foreground mr-2 mt-0.5" />
+              <div className="text-sm text-foreground">
                 <p>To get an OpenRouter API key:</p>
                 <ol className="list-decimal list-inside mt-1 text-xs space-y-1 ml-1">
                   <li>Go to <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="underline">openrouter.ai/keys</a></li>
@@ -258,13 +259,13 @@ export const OpenAIKeyForm = () => {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button type="submit" className="bg-black hover:bg-gray-800 text-white">Save API Key</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">Save API Key</Button>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={testConnection}
                 disabled={isTesting}
-                className="border-gray-300 hover:bg-gray-100"
+                className="border-input hover:bg-secondary"
               >
                 {isTesting ? (
                   <>

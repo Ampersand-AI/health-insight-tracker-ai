@@ -71,15 +71,15 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-black">Health Dashboard</h1>
-            <p className="text-gray-600 mt-1 flex items-center">
+            <h1 className="text-3xl font-bold text-foreground">Health Dashboard</h1>
+            <p className="text-muted-foreground mt-1 flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
               Last updated: {new Date().toLocaleDateString()}
             </p>
           </div>
           <Button 
             size="lg" 
-            className="mt-4 md:mt-0 bg-black hover:bg-gray-800 text-white"
+            className="mt-4 md:mt-0 bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={handleUpload}
           >
             <Upload className="h-4 w-4 mr-2" /> Upload Report
@@ -87,16 +87,16 @@ const Dashboard = () => {
         </div>
 
         {!hasApiKey && (
-          <Card className="mb-8 border-gray-300 bg-gray-50">
+          <Card className="mb-8 border-border bg-secondary/50">
             <CardContent className="p-6">
               <div className="flex flex-col items-center justify-center text-center">
-                <div className="text-gray-600 mb-3">
+                <div className="text-muted-foreground mb-3">
                   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800">API Key Required</h3>
-                <p className="mt-2 text-gray-700">Please add your OpenRouter API key in settings to enable health report scanning and analysis.</p>
+                <h3 className="text-lg font-semibold text-foreground">API Key Required</h3>
+                <p className="mt-2 text-foreground/80">Please add your OpenRouter API key in settings to enable health report scanning and analysis.</p>
                 <Button 
-                  className="mt-4 bg-black hover:bg-gray-800 text-white" 
+                  className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground" 
                   onClick={() => navigate("/profile")}
                 >
                   Go to Settings
@@ -116,17 +116,18 @@ const Dashboard = () => {
                 unit={metric.unit} 
                 status={metric.status} 
                 description={`${metric.name} levels in your blood`} 
+                range={metric.range}
               />
             ))
           ) : (
             <Card className="md:col-span-2 lg:col-span-3 p-6 text-center">
               <div className="flex flex-col items-center justify-center p-6">
-                <Activity className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold mb-2 text-gray-800">No Health Data Yet</h3>
-                <p className="text-gray-600 mb-4">Upload your first health report to see metrics and insights</p>
+                <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2 text-foreground">No Health Data Yet</h3>
+                <p className="text-muted-foreground mb-4">Upload your first health report to see metrics and insights</p>
                 <Button 
                   onClick={handleUpload}
-                  className="bg-black hover:bg-gray-800 text-white"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <Upload className="h-4 w-4 mr-2" /> Upload Health Report
                 </Button>
@@ -136,19 +137,19 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 overflow-hidden border-gray-200">
-            <CardHeader className="bg-gray-50">
+          <Card className="lg:col-span-2 overflow-hidden border-border">
+            <CardHeader className="bg-card">
               <div className="flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2 text-gray-700" />
-                <CardTitle className="text-black">Health Trends</CardTitle>
+                <BarChart3 className="h-5 w-5 mr-2 text-foreground" />
+                <CardTitle className="text-foreground">Health Trends</CardTitle>
               </div>
               <CardDescription>Your health metrics over time</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="h-[300px] flex flex-col items-center justify-center border border-dashed rounded-md bg-gradient-to-b from-white to-gray-50">
-                <Activity className="h-12 w-12 text-gray-300 mb-3" />
-                <p className="text-gray-600 text-center">Chart will appear when you have more data</p>
-                <Button variant="outline" className="mt-4 border-gray-300 text-gray-700 hover:bg-gray-100">
+              <div className="h-[300px] flex flex-col items-center justify-center border border-dashed rounded-md border-border bg-gradient-to-b from-background to-secondary/50">
+                <Activity className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground text-center">Chart will appear when you have more data</p>
+                <Button variant="outline" className="mt-4 border-border text-foreground hover:bg-secondary">
                   <TrendingUp className="h-4 w-4 mr-2" />
                   View Detailed Analysis
                 </Button>
@@ -156,11 +157,11 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="border-gray-200">
-            <CardHeader className="bg-gray-50">
+          <Card className="border-border">
+            <CardHeader className="bg-card">
               <div className="flex items-center">
-                <FileText className="h-5 w-5 mr-2 text-gray-700" />
-                <CardTitle className="text-black">Recent Reports</CardTitle>
+                <FileText className="h-5 w-5 mr-2 text-foreground" />
+                <CardTitle className="text-foreground">Recent Reports</CardTitle>
               </div>
               <CardDescription>Your latest health reports</CardDescription>
             </CardHeader>
