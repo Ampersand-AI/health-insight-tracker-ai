@@ -39,6 +39,8 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
   };
 
   const validateAndProcessFiles = (files: File[]) => {
+    console.log("Validating files:", files.map(f => `${f.name} (${f.type}, ${f.size} bytes)`));
+    
     // Check if files are valid (PDF, JPG, PNG)
     const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     const validFiles = files.filter(file => validTypes.includes(file.type));
@@ -49,6 +51,7 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
         description: "Please upload a PDF, JPG, or PNG file.",
         variant: "destructive",
       });
+      console.log("Invalid file format. Accepted types:", validTypes);
       return;
     }
     
@@ -62,9 +65,11 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
         description: "Maximum file size is 10MB.",
         variant: "destructive",
       });
+      console.log("File too large. Maximum size:", maxSize, "bytes");
       return;
     }
     
+    console.log("Files validated successfully:", validSizeFiles.map(f => f.name));
     onFilesSelected(validSizeFiles);
   };
 

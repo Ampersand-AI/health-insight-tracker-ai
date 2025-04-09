@@ -9,10 +9,11 @@ export interface OCRResult {
 
 async function performOCRWithModel(file: File, model: string, apiKey: string): Promise<OCRResult | null> {
   try {
-    console.log(`Attempting OCR with model: ${model}`);
+    console.log(`Attempting OCR with model: ${model} for file: ${file.name} (${file.type}, ${file.size} bytes)`);
     
     // Convert the file to base64
     const base64File = await fileToBase64(file);
+    console.log("Successfully converted file to base64");
     
     // Prepare the prompt with more specific instructions
     const prompt = `Please analyze this image and extract ALL the text content from it. This is a health report or medical lab result document.
@@ -27,6 +28,7 @@ async function performOCRWithModel(file: File, model: string, apiKey: string): P
 The text extraction needs to be exhaustive and complete, as it will be used for medical analysis.`;
 
     // Make the API call to OpenRouter
+    console.log("Sending request to OpenRouter API...");
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -50,6 +52,8 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
       })
     });
 
+    console.log("Received response from OpenRouter API, status:", response.status);
+    
     if (!response.ok) {
       const errorData = await response.json();
       console.error(`OpenRouter API error with model ${model}:`, errorData);
@@ -57,13 +61,15 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     }
 
     const data = await response.json();
+    console.log("Successfully parsed response JSON");
+    
     if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-      console.error(`Invalid response format from model ${model}`);
+      console.error(`Invalid response format from model ${model}:`, data);
       return null;
     }
     
     const ocrText = data.choices[0].message.content;
-    console.log(`OCR completed successfully with model: ${model}`);
+    console.log(`OCR completed successfully with model: ${model}, extracted ${ocrText.length} characters`);
     
     return { 
       text: ocrText,
@@ -77,6 +83,9 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
 
 export async function performOCR(file: File): Promise<OCRResult | null> {
   try {
+    // First clear any existing data
+    clearAllData();
+    
     const apiKey = localStorage.getItem("openrouter_api_key");
     const primaryModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
@@ -97,7 +106,28 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return null;
     }
 
-    console.log(`Performing OCR on file: ${file.name} using model: ${primaryModel}`);
+    console.log(`Performing OCR on file: ${file.name} (${file.type}, ${file.size} bytes) using model: ${primaryModel}`);
+    
+    // Check if file type is supported
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
+      toast({
+        title: "Unsupported File Type",
+        description: "Please upload a PDF, JPG, or PNG file.",
+        variant: "destructive",
+      });
+      return null;
+    }
+    
+    // Check if file size is within limits (10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({
+        title: "File Too Large",
+        description: "Maximum file size is 10MB.",
+        variant: "destructive",
+      });
+      return null;
+    }
     
     // Try primary model first
     let result = await performOCRWithModel(file, primaryModel, apiKey);
@@ -153,5 +183,15 @@ function fileToBase64(file: File): Promise<string> {
       }
     };
     reader.onerror = error => reject(error);
+  });
+}
+
+// Utility function to clear all stored data
+export function clearAllData(): void {
+  console.log("Clearing all stored health data");
+  localStorage.removeItem('scannedReports');
+  toast({
+    title: "Data Cleared",
+    description: "All health data has been removed from your device.",
   });
 }
