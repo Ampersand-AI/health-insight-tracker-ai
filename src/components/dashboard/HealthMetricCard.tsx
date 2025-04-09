@@ -4,7 +4,7 @@ import { Activity, AlertTriangle, AlertCircle, TrendingUp, TrendingDown } from "
 
 interface HealthMetricCardProps {
   title: string;
-  value: string;
+  value: string | number;
   unit: string;
   status: "normal" | "warning" | "danger";
   change?: number;
@@ -19,6 +19,9 @@ export function HealthMetricCard({
   change, 
   description 
 }: HealthMetricCardProps) {
+  // Handle value if it's an object
+  const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
+
   const getStatusColor = (status: string) => {
     switch(status) {
       case "normal": return "text-green-500";
@@ -87,7 +90,7 @@ export function HealthMetricCard({
       <CardContent className="pt-4">
         <div className="flex justify-between items-center">
           <div className="flex items-baseline">
-            <span className={`text-3xl font-bold ${getStatusColor(status)}`}>{value}</span>
+            <span className={`text-3xl font-bold ${getStatusColor(status)}`}>{displayValue}</span>
             <span className="ml-1 text-sm text-muted-foreground">{unit}</span>
           </div>
         </div>

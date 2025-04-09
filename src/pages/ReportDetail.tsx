@@ -17,7 +17,7 @@ interface Report {
   id: string;
   title: string;
   date: string;
-  metrics: HealthMetric[]; // Changed to use HealthMetric from openAIService
+  metrics: HealthMetric[]; 
   recommendations: string[];
   type: string;
   rawText?: string;
@@ -41,6 +41,18 @@ const ReportDetail = () => {
         const foundReport = parsedReports.find((report: Report) => report.id === id);
         
         if (foundReport) {
+          // Make sure metrics have proper format before setting state
+          if (foundReport.metrics) {
+            foundReport.metrics = foundReport.metrics.map((metric: any) => ({
+              ...metric,
+              // Ensure the value is a primitive type, not an object
+              value: typeof metric.value === 'object' ? 
+                JSON.stringify(metric.value) : metric.value,
+              // Ensure history exists
+              history: metric.history || []
+            }));
+          }
+          
           setReport(foundReport);
           // Filter risk metrics
           const atRiskMetrics = foundReport.metrics.filter(
@@ -267,8 +279,6 @@ const ReportDetail = () => {
             </TabsContent>
           )}
         </Tabs>
-      </div>
-    </Layout>
   );
 };
 

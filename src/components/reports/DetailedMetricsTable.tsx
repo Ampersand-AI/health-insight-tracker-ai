@@ -53,7 +53,7 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
               metric.status === "warning" ? "bg-amber-900/10" : ""
             }>
               <TableCell className="font-medium">{metric.name}</TableCell>
-              <TableCell>{metric.value}</TableCell>
+              <TableCell>{typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value}</TableCell>
               <TableCell>{metric.unit}</TableCell>
               <TableCell>{metric.range}</TableCell>
               <TableCell>{getStatusBadge(metric.status)}</TableCell>
