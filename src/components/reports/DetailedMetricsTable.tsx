@@ -61,8 +61,8 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
             }>
               <TableCell className="font-medium">{metric.name}</TableCell>
               <TableCell>{formatValue(metric.value)}</TableCell>
-              <TableCell>{metric.unit}</TableCell>
-              <TableCell>{metric.range}</TableCell>
+              <TableCell>{formatValue(metric.unit)}</TableCell>
+              <TableCell>{formatValue(metric.range)}</TableCell>
               <TableCell>{getStatusBadge(metric.status)}</TableCell>
             </TableRow>
           ))}

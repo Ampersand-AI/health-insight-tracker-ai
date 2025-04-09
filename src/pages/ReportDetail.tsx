@@ -48,8 +48,11 @@ const ReportDetail = () => {
               // Ensure the value is a primitive type, not an object
               value: typeof metric.value === 'object' ? 
                 JSON.stringify(metric.value) : metric.value,
-              // Ensure history exists
-              history: metric.history || []
+              // Ensure history exists and all values in history are also primitive
+              history: (metric.history || []).map((h: any) => ({
+                ...h,
+                value: typeof h.value === 'object' ? JSON.stringify(h.value) : h.value
+              }))
             }));
           }
           
