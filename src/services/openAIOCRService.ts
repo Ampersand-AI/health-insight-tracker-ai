@@ -62,6 +62,10 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
     const ocrText = data.choices[0].message.content;
     
     console.log("OCR completed successfully");
+    toast({
+      title: "OCR Completed",
+      description: `Document processed using ${model.split('/').pop()}`,
+    });
     
     return { text: ocrText };
   } catch (error) {

@@ -8,13 +8,13 @@ const Profile = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
-        <h1 className="text-3xl font-bold mb-6">Settings</h1>
+        <h1 className="text-3xl font-bold mb-6 text-white">Settings</h1>
         
         <Tabs defaultValue="api" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="api">API Connection</TabsTrigger>
-            <TabsTrigger value="account">Account</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsList className="bg-neutral-900 border-neutral-800">
+            <TabsTrigger value="api" className="data-[state=active]:bg-neutral-800 text-neutral-300 data-[state=active]:text-white">API Connection</TabsTrigger>
+            <TabsTrigger value="account" className="data-[state=active]:bg-neutral-800 text-neutral-300 data-[state=active]:text-white">Account</TabsTrigger>
+            <TabsTrigger value="preferences" className="data-[state=active]:bg-neutral-800 text-neutral-300 data-[state=active]:text-white">Preferences</TabsTrigger>
           </TabsList>
           
           <TabsContent value="api" className="space-y-4">
@@ -22,25 +22,25 @@ const Profile = () => {
           </TabsContent>
           
           <TabsContent value="account">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>Manage your account preferences</CardDescription>
+            <Card className="border-neutral-800">
+              <CardHeader className="bg-neutral-900">
+                <CardTitle className="text-white">Account Settings</CardTitle>
+                <CardDescription className="text-neutral-400">Manage your account preferences</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Account management features coming soon</p>
+              <CardContent className="bg-neutral-950">
+                <p className="text-neutral-500">Account management features coming soon</p>
               </CardContent>
             </Card>
           </TabsContent>
           
           <TabsContent value="preferences">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Preferences</CardTitle>
-                <CardDescription>Customize your application experience</CardDescription>
+            <Card className="border-neutral-800">
+              <CardHeader className="bg-neutral-900">
+                <CardTitle className="text-white">User Preferences</CardTitle>
+                <CardDescription className="text-neutral-400">Customize your application experience</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Preference options coming soon</p>
+              <CardContent className="bg-neutral-950">
+                <p className="text-neutral-500">Preference options coming soon</p>
               </CardContent>
             </Card>
           </TabsContent>

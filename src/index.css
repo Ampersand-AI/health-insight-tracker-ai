@@ -5,63 +5,17 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
-
-    --primary: 0 0% 0%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 0%;
-
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45%;
-
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 0%;
-
-    --destructive: 0 0% 0%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 0%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 26.1%;
-    --sidebar-primary: 0 0% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 95.9%;
-    --sidebar-accent-foreground: 0 0% 10%;
-    --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 0 0% 59.8%;
-
-    /* Health status colors - grayscale */
-    --health-normal: 0 0% 40%;
-    --health-warning: 0 0% 60%;
-    --health-danger: 0 0% 0%;
-  }
-
-  .dark {
-    --background: 0 0% 4.9%;
+    --background: 0 0% 7%;
     --foreground: 0 0% 98%;
 
-    --card: 0 0% 4.9%;
+    --card: 0 0% 7%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 4.9%;
+    --popover: 0 0% 7%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 0%;
+    --primary-foreground: 0 0% 7%;
 
     --secondary: 0 0% 17.5%;
     --secondary-foreground: 0 0% 98%;
@@ -78,7 +32,9 @@
     --border: 0 0% 17.5%;
     --input: 0 0% 17.5%;
     --ring: 0 0% 83.9%;
-    
+
+    --radius: 0.5rem;
+
     --sidebar-background: 0 0% 10%;
     --sidebar-foreground: 0 0% 95.9%;
     --sidebar-primary: 0 0% 48%;
