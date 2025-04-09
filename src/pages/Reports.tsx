@@ -4,22 +4,39 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Layout } from "@/components/layout/Layout";
 import { UploadReportDialog } from "@/components/upload/UploadReportDialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Eye, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const reportsData = [
-  { id: 1, title: "Blood Report - July 2024", date: "2024-07-15", status: "Analyzed" },
-  { id: 2, title: "Cholesterol Panel - May 2024", date: "2024-05-03", status: "Analyzed" },
-  { id: 3, title: "CBC Results - January 2024", date: "2024-01-22", status: "Analyzed" },
-];
+interface Report {
+  id: string;
+  title: string;
+  date: string;
+  status: string;
+  type: string;
+}
 
 const Reports = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [reportsData, setReportsData] = useState<Report[]>([]);
   const { toast } = useToast();
 
-  const handleDownload = (id: number) => {
+  useEffect(() => {
+    // Get the scanned reports from localStorage
+    const storedReports = localStorage.getItem('scannedReports');
+    if (storedReports) {
+      try {
+        const parsedReports = JSON.parse(storedReports);
+        setReportsData(parsedReports);
+      } catch (error) {
+        console.error("Error parsing reports:", error);
+        setReportsData([]);
+      }
+    }
+  }, []);
+
+  const handleDownload = (id: string) => {
     toast({
       title: "Download started",
       description: "Your report download has started",

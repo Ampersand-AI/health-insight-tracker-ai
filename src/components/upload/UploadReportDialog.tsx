@@ -5,17 +5,75 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { FileUploader } from "./FileUploader";
 import { Progress } from "@/components/ui/progress";
+import { v4 as uuidv4 } from "uuid";
+import { useNavigate } from "react-router-dom";
 
 interface UploadReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+// Sample metric generation for demo purposes
+const generateSampleMetrics = () => {
+  const metrics = [
+    {
+      name: "Cholesterol",
+      value: Math.floor(Math.random() * (220 - 150) + 150),
+      unit: "mg/dL",
+      status: "normal",
+      range: "125-200",
+      history: []
+    },
+    {
+      name: "Glucose",
+      value: Math.floor(Math.random() * (110 - 80) + 80),
+      unit: "mg/dL",
+      status: "normal",
+      range: "70-100",
+      history: []
+    },
+    {
+      name: "Hemoglobin",
+      value: (Math.random() * (16 - 12) + 12).toFixed(1),
+      unit: "g/dL",
+      status: "normal",
+      range: "14-18",
+      history: []
+    }
+  ];
+
+  // Set status based on value
+  metrics[0].status = metrics[0].value > 200 ? "danger" : metrics[0].value > 190 ? "warning" : "normal";
+  metrics[1].status = metrics[1].value > 100 ? "warning" : "normal";
+  metrics[2].status = parseFloat(metrics[2].value) < 14 ? "warning" : "normal";
+
+  // Generate history
+  const today = new Date();
+  metrics.forEach(metric => {
+    const baseValue = metric.value;
+    metric.history = Array(4).fill(null).map((_, i) => {
+      const date = new Date();
+      date.setMonth(today.getMonth() - (3 - i));
+      const historyValue = typeof baseValue === 'string' 
+        ? (parseFloat(baseValue) + (Math.random() * 2 - 1)).toFixed(1)
+        : baseValue + Math.floor(Math.random() * 10 - 5);
+      
+      return {
+        date: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        value: typeof historyValue === 'string' ? parseFloat(historyValue) : historyValue
+      };
+    });
+  });
+
+  return metrics;
+};
+
 export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleFileUpload = (files: File[]) => {
     if (files.length === 0) return;
@@ -30,7 +88,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
           clearInterval(interval);
           setIsUploading(false);
           setIsAnalyzing(true);
-          simulateAnalysis();
+          simulateAnalysis(files[0]);
           return 100;
         }
         return prev + 5;
@@ -38,16 +96,55 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
     }, 150);
   };
 
-  const simulateAnalysis = () => {
+  const simulateAnalysis = (file: File) => {
     // Simulate analysis process
     setTimeout(() => {
+      const reportId = uuidv4();
+      const reportType = determineReportType(file.name);
+      
+      // Create a new report with sample data
+      const newReport = {
+        id: reportId,
+        title: file.name.replace(/\.[^/.]+$/, "") || "Health Report",
+        date: new Date().toISOString(),
+        type: reportType,
+        status: "Analyzed",
+        metrics: generateSampleMetrics(),
+        recommendations: [
+          "Maintain a balanced diet rich in vegetables and lean proteins.",
+          "Engage in regular physical activity, aiming for at least 150 minutes per week.",
+          "Stay hydrated by drinking at least 8 glasses of water daily."
+        ]
+      };
+
+      // Get existing reports or initialize empty array
+      const existingReports = JSON.parse(localStorage.getItem('scannedReports') || '[]');
+      
+      // Add new report to the beginning of the array
+      const updatedReports = [newReport, ...existingReports];
+      
+      // Save to localStorage
+      localStorage.setItem('scannedReports', JSON.stringify(updatedReports));
+
       setIsAnalyzing(false);
       onOpenChange(false);
+      
       toast({
         title: "Analysis Complete",
         description: "Your report has been successfully analyzed and added to your dashboard.",
       });
+
+      // Navigate to the new report
+      navigate(`/report/${reportId}`);
     }, 3000);
+  };
+
+  const determineReportType = (filename: string): string => {
+    const lowerName = filename.toLowerCase();
+    if (lowerName.includes('blood')) return 'blood';
+    if (lowerName.includes('cholesterol')) return 'cholesterol';
+    if (lowerName.includes('cbc')) return 'cbc';
+    return 'blood'; // Default type
   };
 
   return (

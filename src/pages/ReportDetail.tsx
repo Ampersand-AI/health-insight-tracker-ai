@@ -1,78 +1,31 @@
 
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Layout } from "@/components/layout/Layout";
 import { Separator } from "@/components/ui/separator";
 import { ChartContainer } from "@/components/ui/chart";
+import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-// Mock data
-const reportData = {
-  id: 1,
-  title: "Blood Report - July 2024",
-  date: "2024-07-15",
-  metrics: [
-    { 
-      name: "Cholesterol", 
-      value: 185, 
-      unit: "mg/dL", 
-      status: "normal",
-      range: "125-200",
-      history: [
-        { date: "Jan 2024", value: 195 },
-        { date: "Mar 2024", value: 190 },
-        { date: "May 2024", value: 188 },
-        { date: "Jul 2024", value: 185 },
-      ]
-    },
-    { 
-      name: "Glucose", 
-      value: 98, 
-      unit: "mg/dL", 
-      status: "normal",
-      range: "70-100",
-      history: [
-        { date: "Jan 2024", value: 95 },
-        { date: "Mar 2024", value: 92 },
-        { date: "May 2024", value: 96 },
-        { date: "Jul 2024", value: 98 },
-      ]
-    },
-    { 
-      name: "Hemoglobin", 
-      value: 13.5, 
-      unit: "g/dL", 
-      status: "warning",
-      range: "14-18",
-      history: [
-        { date: "Jan 2024", value: 14.5 },
-        { date: "Mar 2024", value: 14.2 },
-        { date: "May 2024", value: 13.8 },
-        { date: "Jul 2024", value: 13.5 },
-      ]
-    },
-    { 
-      name: "Red Blood Cells", 
-      value: 5.1, 
-      unit: "million/μL", 
-      status: "normal",
-      range: "4.5-5.9",
-      history: [
-        { date: "Jan 2024", value: 5.2 },
-        { date: "Mar 2024", value: 5.0 },
-        { date: "May 2024", value: 5.1 },
-        { date: "Jul 2024", value: 5.1 },
-      ]
-    },
-  ],
-  recommendations: [
-    "Consider increasing iron-rich foods in your diet to improve hemoglobin levels.",
-    "Maintain regular exercise to keep cholesterol and glucose levels in check.",
-    "Schedule a follow-up appointment in 3 months to monitor hemoglobin levels."
-  ]
-};
+interface Metric {
+  name: string;
+  value: number;
+  unit: string;
+  status: string;
+  range: string;
+  history: { date: string; value: number }[];
+}
+
+interface Report {
+  id: string;
+  title: string;
+  date: string;
+  metrics: Metric[];
+  recommendations: string[];
+  type: string;
+}
 
 const chartConfig = {
   normal: {
@@ -88,7 +41,57 @@ const chartConfig = {
 
 const ReportDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [report, setReport] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
   
+  useEffect(() => {
+    if (!id) return;
+    
+    // Get the scanned reports from localStorage
+    const storedReports = localStorage.getItem('scannedReports');
+    if (storedReports) {
+      try {
+        const parsedReports = JSON.parse(storedReports);
+        const foundReport = parsedReports.find((report: Report) => report.id === id);
+        
+        if (foundReport) {
+          setReport(foundReport);
+        } else {
+          // Report not found
+          navigate('/reports');
+        }
+      } catch (error) {
+        console.error("Error loading report:", error);
+      }
+    }
+    setLoading(false);
+  }, [id, navigate]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-6 flex justify-center items-center min-h-[50vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!report) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-6">
+          <h1 className="text-3xl font-bold">Report Not Found</h1>
+          <p className="mt-4">The report you're looking for doesn't exist or has been removed.</p>
+          <Button className="mt-6" onClick={() => navigate('/reports')}>
+            Back to Reports
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
+
   const getStatusClass = (status: string) => {
     switch(status) {
       case "normal": return "text-health-normal";
@@ -102,9 +105,9 @@ const ReportDetail = () => {
     <Layout>
       <div className="container mx-auto px-4 py-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">{reportData.title}</h1>
+          <h1 className="text-3xl font-bold">{report.title}</h1>
           <p className="text-muted-foreground mt-1">
-            Report Date: {new Date(reportData.date).toLocaleDateString()}
+            Report Date: {new Date(report.date).toLocaleDateString()}
           </p>
         </div>
 
@@ -117,7 +120,7 @@ const ReportDetail = () => {
           
           <TabsContent value="overview">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {reportData.metrics.map((metric) => (
+              {report.metrics.map((metric) => (
                 <Card key={metric.name}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-xl">{metric.name}</CardTitle>
@@ -143,7 +146,7 @@ const ReportDetail = () => {
           
           <TabsContent value="trends">
             <div className="grid grid-cols-1 gap-6">
-              {reportData.metrics.map((metric) => (
+              {report.metrics.map((metric) => (
                 <Card key={metric.name}>
                   <CardHeader>
                     <CardTitle>{metric.name} Trend</CardTitle>
@@ -152,25 +155,33 @@ const ReportDetail = () => {
                   <CardContent>
                     <div className="h-[250px] w-full">
                       <ChartContainer config={chartConfig}>
-                        <AreaChart data={metric.history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id={`color-${metric.name}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={`hsl(var(--health-${metric.status}))`} stopOpacity={0.8}/>
-                              <stop offset="95%" stopColor={`hsl(var(--health-${metric.status}))`} stopOpacity={0.1}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                          <XAxis dataKey="date" />
-                          <YAxis domain={['auto', 'auto']} />
-                          <Tooltip />
-                          <Area 
-                            type="monotone" 
-                            dataKey="value" 
-                            stroke={`hsl(var(--health-${metric.status}))`} 
-                            fillOpacity={1} 
-                            fill={`url(#color-${metric.name})`} 
-                          />
-                        </AreaChart>
+                        {metric.history && metric.history.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={metric.history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id={`color-${metric.name}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={`hsl(var(--health-${metric.status}))`} stopOpacity={0.8}/>
+                                  <stop offset="95%" stopColor={`hsl(var(--health-${metric.status}))`} stopOpacity={0.1}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                              <XAxis dataKey="date" />
+                              <YAxis domain={['auto', 'auto']} />
+                              <Tooltip />
+                              <Area 
+                                type="monotone" 
+                                dataKey="value" 
+                                stroke={`hsl(var(--health-${metric.status}))`} 
+                                fillOpacity={1} 
+                                fill={`url(#color-${metric.name})`} 
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center">
+                            <p className="text-muted-foreground">No historical data available</p>
+                          </div>
+                        )}
                       </ChartContainer>
                     </div>
                   </CardContent>
@@ -188,16 +199,20 @@ const ReportDetail = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-4">
-                  {reportData.recommendations.map((recommendation, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <div className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-sm flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      <p>{recommendation}</p>
-                    </li>
-                  ))}
-                </ul>
+                {report.recommendations && report.recommendations.length > 0 ? (
+                  <ul className="space-y-4">
+                    {report.recommendations.map((recommendation, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <div className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-sm flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        <p>{recommendation}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground">No recommendations available for this report.</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -3,15 +3,32 @@ import { Button } from "@/components/ui/button";
 import { Eye, FileText, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
 
-// Mock data for recent reports
-const recentReports = [
-  { id: 1, title: "Blood Report - July 2024", date: "2024-07-15", type: "blood" },
-  { id: 2, title: "Cholesterol Panel - May 2024", date: "2024-05-03", type: "cholesterol" },
-  { id: 3, title: "CBC Results - January 2024", date: "2024-01-22", type: "cbc" },
-];
+interface Report {
+  id: string;
+  title: string;
+  date: string;
+  type: string;
+}
 
 export function RecentReports() {
+  const [recentReports, setRecentReports] = useState<Report[]>([]);
+
+  useEffect(() => {
+    // Get the scanned reports from localStorage
+    const storedReports = localStorage.getItem('scannedReports');
+    if (storedReports) {
+      try {
+        const parsedReports = JSON.parse(storedReports);
+        setRecentReports(parsedReports);
+      } catch (error) {
+        console.error("Error parsing reports:", error);
+        setRecentReports([]);
+      }
+    }
+  }, []);
+
   if (recentReports.length === 0) {
     return (
       <div className="text-center py-6">
@@ -33,9 +50,12 @@ export function RecentReports() {
     }
   };
 
+  // Show only the most recent 3 reports
+  const displayReports = recentReports.slice(0, 3);
+
   return (
     <div className="space-y-4">
-      {recentReports.map((report) => (
+      {displayReports.map((report) => (
         <div key={report.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-gray-800/30 p-2 rounded-md transition-colors">
           <div className="flex items-start space-x-3">
             <div className="mt-1">
