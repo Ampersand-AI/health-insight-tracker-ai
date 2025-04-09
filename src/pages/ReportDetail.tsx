@@ -41,7 +41,7 @@ const ReportDetail = () => {
         const foundReport = parsedReports.find((report: Report) => report.id === id);
         
         if (foundReport) {
-          // Make sure metrics have proper format before setting state
+          // Process metrics to ensure all values are primitive types
           if (foundReport.metrics) {
             foundReport.metrics = foundReport.metrics.map((metric: any) => ({
               ...metric,
@@ -279,6 +279,8 @@ const ReportDetail = () => {
             </TabsContent>
           )}
         </Tabs>
+      </div>
+    </Layout>
   );
 };
 
