@@ -1,4 +1,3 @@
-
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,9 +68,14 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-foreground">Welcome, User</h1>
+          <div className="w-24 h-1 bg-primary/40 mx-auto mt-4 mb-6"></div>
+        </div>
+
         <div className="flex flex-col md:flex-row justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Health Dashboard</h1>
+            <h2 className="text-3xl font-bold text-foreground">Health Dashboard</h2>
             <p className="text-muted-foreground mt-1 flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
               Last updated: {new Date().toLocaleDateString()}

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const apiKeySchema = z.object({
   apiKey: z.string().min(1, { message: "Please enter your OpenRouter API key" }),
-  model: z.string().default("anthropic/claude-3-opus:beta"),
+  model: z.string().default("anthropic/anthropic-3-haiku-20240307-v1:0"),
 });
 
 export const OpenAIKeyForm = () => {
@@ -22,6 +22,7 @@ export const OpenAIKeyForm = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [availableModels, setAvailableModels] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [modelSelected, setModelSelected] = useState(false);
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
     resolver: zodResolver(apiKeySchema),
@@ -39,6 +40,7 @@ export const OpenAIKeyForm = () => {
       form.setValue("apiKey", savedKey);
       form.setValue("model", savedModel);
       setIsSaved(true);
+      setModelSelected(!!savedModel);
       fetchAvailableModels(savedKey);
     }
   }, [form]);
@@ -80,7 +82,13 @@ export const OpenAIKeyForm = () => {
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     localStorage.setItem("openrouter_api_key", data.apiKey);
-    localStorage.setItem("openrouter_model", data.model);
+    
+    // Only update the model if it hasn't been selected before
+    if (!modelSelected) {
+      localStorage.setItem("openrouter_model", data.model);
+      setModelSelected(true);
+    }
+    
     setIsSaved(true);
     toast({
       title: "API Key Saved",
@@ -151,6 +159,13 @@ export const OpenAIKeyForm = () => {
     }
   };
 
+  const handleModelChange = (value: string) => {
+    // Only allow changing the model if it hasn't been selected before
+    if (!modelSelected) {
+      form.setValue("model", value);
+    }
+  };
+
   return (
     <Card className="border-border">
       <CardHeader className="bg-card">
@@ -206,7 +221,11 @@ export const OpenAIKeyForm = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Model</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select 
+                    onValueChange={handleModelChange} 
+                    defaultValue={field.value}
+                    disabled={modelSelected}
+                  >
                     <FormControl>
                       <SelectTrigger className="border-input focus:border-ring focus:ring-ring">
                         <SelectValue placeholder="Select a model" />
@@ -238,7 +257,9 @@ export const OpenAIKeyForm = () => {
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Choose a model for processing your health reports
+                    {modelSelected ? 
+                      "Model selected and locked. This cannot be changed." : 
+                      "Choose a model for processing your health reports"}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
