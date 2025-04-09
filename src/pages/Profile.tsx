@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { OcrSpaceApiForm } from "@/components/apiConnection/OcrSpaceApiForm";
+import { OpticDevApiForm } from "@/components/apiConnection/OpticDevApiForm";
 import { ApiKeyTester } from "@/components/apiConnection/ApiKeyTester";
 import { ModelSelector } from "@/components/apiConnection/ModelSelector";
 
@@ -156,7 +156,7 @@ const Profile = () => {
           
           <TabsContent value="api">
             <div className="grid grid-cols-1 gap-6">
-              <OcrSpaceApiForm />
+              <OpticDevApiForm />
               
               <Card>
                 <CardHeader>

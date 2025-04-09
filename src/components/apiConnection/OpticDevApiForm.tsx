@@ -14,7 +14,7 @@ const apiKeySchema = z.object({
   apiKey: z.string().min(10, { message: "API key must be at least 10 characters" }),
 });
 
-export const OcrSpaceApiForm = () => {
+export const OpticDevApiForm = () => {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
@@ -26,7 +26,7 @@ export const OcrSpaceApiForm = () => {
 
   // Load saved API key if available
   useEffect(() => {
-    const savedApiKey = localStorage.getItem("ocrspace_api_key");
+    const savedApiKey = localStorage.getItem("opticdev_api_key");
     if (savedApiKey) {
       form.setValue("apiKey", savedApiKey);
     }
@@ -34,20 +34,20 @@ export const OcrSpaceApiForm = () => {
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     // Save API key to localStorage
-    localStorage.setItem("ocrspace_api_key", data.apiKey);
+    localStorage.setItem("opticdev_api_key", data.apiKey);
     
     toast({
-      title: "OCR Space API Key Saved",
-      description: "Your OCR Space API key has been saved",
+      title: "Optic.dev API Key Saved",
+      description: "Your Optic.dev API key has been saved",
     });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>OCR Space API Key</CardTitle>
+        <CardTitle>Optic.dev API Key</CardTitle>
         <CardDescription>
-          Set your OCR Space API key for text extraction from reports
+          Set your Optic.dev API key for text extraction from reports
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -63,10 +63,10 @@ export const OcrSpaceApiForm = () => {
                     <FormControl>
                       <Input {...field} type="password" />
                     </FormControl>
-                    <ApiKeyTester apiKey={field.value} apiType="ocrspace" />
+                    <ApiKeyTester apiKey={field.value} apiType="opticdev" />
                   </div>
                   <FormDescription>
-                    Your OCR Space API key is stored securely in your browser. Get a free key at <a href="https://ocr.space/OCRAPI" target="_blank" rel="noreferrer" className="text-primary underline">ocr.space</a>
+                    Your Optic.dev API key is stored securely in your browser. Get a key at <a href="https://optic.dev" target="_blank" rel="noreferrer" className="text-primary underline">optic.dev</a>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
