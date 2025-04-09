@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Info, Check, Key, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const apiKeySchema = z.object({
   apiKey: z.string().min(1, { message: "Please enter your OpenAI API key" }),
+  model: z.string().default("gpt-4o"),
 });
 
 export const OpenAIKeyForm = () => {
@@ -23,23 +25,28 @@ export const OpenAIKeyForm = () => {
     resolver: zodResolver(apiKeySchema),
     defaultValues: {
       apiKey: "",
+      model: "gpt-4o",
     },
   });
 
   useEffect(() => {
     const savedKey = localStorage.getItem("openai_api_key");
+    const savedModel = localStorage.getItem("openai_model") || "gpt-4o";
+    
     if (savedKey) {
       form.setValue("apiKey", savedKey);
+      form.setValue("model", savedModel);
       setIsSaved(true);
     }
   }, [form]);
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     localStorage.setItem("openai_api_key", data.apiKey);
+    localStorage.setItem("openai_model", data.model);
     setIsSaved(true);
     toast({
       title: "API Key Saved",
-      description: "Your OpenAI API key has been saved",
+      description: `Your OpenAI API key and model (${data.model}) have been saved`,
     });
   };
 
@@ -95,9 +102,9 @@ export const OpenAIKeyForm = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <Card className="border-gray-200">
+      <CardHeader className="bg-gray-50">
+        <CardTitle className="flex items-center gap-2 text-black">
           <Key className="h-5 w-5" />
           OpenAI API Key
         </CardTitle>
@@ -105,13 +112,13 @@ export const OpenAIKeyForm = () => {
           Connect your OpenAI API key to enable health report scanning and analysis
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         {isSaved && (
-          <div className="flex items-start p-4 mb-4 border border-green-200 bg-green-50 rounded-md">
-            <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
+          <div className="flex items-start p-4 mb-4 border border-gray-200 bg-gray-50 rounded-md">
+            <Check className="h-5 w-5 text-gray-700 mr-2 mt-0.5" />
             <div>
-              <p className="text-sm text-green-800 font-medium">API Key Connected</p>
-              <p className="text-xs text-green-700">
+              <p className="text-sm text-gray-800 font-medium">API Key Connected</p>
+              <p className="text-xs text-gray-700">
                 Your OpenAI API key is saved and ready to use
               </p>
             </div>
@@ -131,6 +138,7 @@ export const OpenAIKeyForm = () => {
                       placeholder="sk-..."
                       type="password"
                       autoComplete="off"
+                      className="border-gray-300 focus:border-gray-500 focus:ring-gray-500"
                       {...field}
                     />
                   </FormControl>
@@ -141,9 +149,36 @@ export const OpenAIKeyForm = () => {
                 </FormItem>
               )}
             />
-            <div className="flex items-start p-4 border border-blue-200 bg-blue-50 rounded-md">
-              <Info className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
-              <div className="text-sm text-blue-800">
+
+            <FormField
+              control={form.control}
+              name="model"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>OpenAI Model</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="border-gray-300 focus:border-gray-500 focus:ring-gray-500">
+                        <SelectValue placeholder="Select a model" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="gpt-4o">GPT-4o (Recommended)</SelectItem>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Faster, less expensive)</SelectItem>
+                      <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview (Most powerful)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    GPT-4o is recommended for best results in health report analysis
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex items-start p-4 border border-gray-200 bg-gray-50 rounded-md">
+              <Info className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+              <div className="text-sm text-gray-800">
                 <p>To get an OpenAI API key:</p>
                 <ol className="list-decimal list-inside mt-1 text-xs space-y-1 ml-1">
                   <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="underline">platform.openai.com/api-keys</a></li>
@@ -151,16 +186,17 @@ export const OpenAIKeyForm = () => {
                   <li>Create a new API key</li>
                   <li>Copy and paste it here</li>
                 </ol>
-                <p className="mt-2 text-xs">This app uses the GPT-4o model for OCR and analysis. You will be charged based on OpenAI's pricing.</p>
+                <p className="mt-2 text-xs">This app uses OpenAI for OCR and analysis. You will be charged based on OpenAI's pricing.</p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button type="submit">Save API Key</Button>
+              <Button type="submit" className="bg-black hover:bg-gray-800 text-white">Save API Key</Button>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={testConnection}
                 disabled={isTesting}
+                className="border-gray-300 hover:bg-gray-100"
               >
                 {isTesting ? (
                   <>

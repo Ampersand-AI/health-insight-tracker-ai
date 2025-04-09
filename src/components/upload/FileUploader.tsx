@@ -71,19 +71,19 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
   return (
     <div
       className={`border-2 border-dashed rounded-lg p-8 text-center ${
-        isDragging ? 'border-primary bg-primary/5' : 'border-border'
+        isDragging ? 'border-black bg-gray-50' : 'border-gray-300'
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       <div className="flex flex-col items-center justify-center gap-4">
-        <div className="rounded-full bg-background p-3 border">
-          <Upload className="h-6 w-6 text-muted-foreground" />
+        <div className="rounded-full bg-gray-50 p-3 border border-gray-200">
+          <Upload className="h-6 w-6 text-gray-600" />
         </div>
         <div>
-          <p className="font-medium">Drag & drop your file here</p>
-          <p className="text-sm text-muted-foreground mt-1">or click to browse files</p>
+          <p className="font-medium text-gray-900">Drag & drop your file here</p>
+          <p className="text-sm text-gray-500 mt-1">or click to browse files</p>
         </div>
         <input
           ref={fileInputRef}
@@ -95,6 +95,7 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
         <Button 
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
+          className="border-gray-300 text-gray-700 hover:bg-gray-100"
         >
           Select File
         </Button>

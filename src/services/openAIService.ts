@@ -23,6 +23,7 @@ export interface AnalysisResult {
 export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResult | null> {
   try {
     const apiKey = localStorage.getItem("openai_api_key");
+    const model = localStorage.getItem("openai_model") || "gpt-4o";
     
     if (!apiKey) {
       toast({
@@ -33,7 +34,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
       return null;
     }
 
-    console.log("Analyzing health report text");
+    console.log(`Analyzing health report text using model: ${model}`);
     
     // Make the API call to OpenAI
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -43,7 +44,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: model,
         messages: [
           {
             role: "system", 

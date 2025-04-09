@@ -11,6 +11,7 @@ export async function performOCR(file: File): Promise<OpenAIOCRResult | null> {
     // Convert the file to base64 for API consumption
     const base64File = await fileToBase64(file);
     const apiKey = localStorage.getItem("openai_api_key");
+    const model = localStorage.getItem("openai_model") || "gpt-4o";
     
     if (!apiKey) {
       toast({
@@ -21,7 +22,7 @@ export async function performOCR(file: File): Promise<OpenAIOCRResult | null> {
       return null;
     }
     
-    console.log("Starting OCR with file type:", file.type);
+    console.log(`Starting OCR with file type: ${file.type} using model: ${model}`);
     
     // Make the API call to OpenAI for vision/OCR
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -31,7 +32,7 @@ export async function performOCR(file: File): Promise<OpenAIOCRResult | null> {
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: model,
         messages: [
           {
             role: "system", 
