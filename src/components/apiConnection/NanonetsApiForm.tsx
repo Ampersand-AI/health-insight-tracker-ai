@@ -14,7 +14,7 @@ const apiKeySchema = z.object({
   apiKey: z.string().min(10, { message: "API key must be at least 10 characters" }),
 });
 
-export const OpticDevApiForm = () => {
+export const NanonetsApiForm = () => {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
@@ -26,7 +26,7 @@ export const OpticDevApiForm = () => {
 
   // Load saved API key if available
   useEffect(() => {
-    const savedApiKey = localStorage.getItem("opticdev_api_key");
+    const savedApiKey = localStorage.getItem("nanonets_api_key");
     if (savedApiKey) {
       form.setValue("apiKey", savedApiKey);
     }
@@ -34,20 +34,20 @@ export const OpticDevApiForm = () => {
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     // Save API key to localStorage
-    localStorage.setItem("opticdev_api_key", data.apiKey);
+    localStorage.setItem("nanonets_api_key", data.apiKey);
     
     toast({
-      title: "Optic.dev API Key Saved",
-      description: "Your Optic.dev API key has been saved",
+      title: "Nanonets API Key Saved",
+      description: "Your Nanonets API key has been saved",
     });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Optic.dev API Key</CardTitle>
+        <CardTitle>Nanonets API Key</CardTitle>
         <CardDescription>
-          Set your Optic.dev API key for text extraction from reports
+          Set your Nanonets API key for OCR text extraction from reports
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -63,10 +63,10 @@ export const OpticDevApiForm = () => {
                     <FormControl>
                       <Input {...field} type="password" />
                     </FormControl>
-                    <ApiKeyTester apiKey={field.value} apiType="opticdev" />
+                    <ApiKeyTester apiKey={field.value} apiType="nanonets" />
                   </div>
                   <FormDescription>
-                    Your Optic.dev API key is stored securely in your browser. Get a key at <a href="https://optic.dev" target="_blank" rel="noreferrer" className="text-primary underline">optic.dev</a>
+                    Your Nanonets API key is stored securely in your browser. Get a key at <a href="https://nanonets.com" target="_blank" rel="noreferrer" className="text-primary underline">nanonets.com</a>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

@@ -6,7 +6,7 @@ import { Loader } from "lucide-react";
 
 interface ApiKeyTesterProps {
   apiKey: string;
-  apiType: "opticdev" | "openrouter";
+  apiType: "nanonets" | "openrouter";
 }
 
 export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
@@ -25,20 +25,20 @@ export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
     setTesting(true);
 
     try {
-      if (apiType === "opticdev") {
-        // Test Optic.dev API with a sample request
-        const response = await fetch("https://api.optic.dev/v1/status", {
+      if (apiType === "nanonets") {
+        // Test Nanonets API with a models request
+        const response = await fetch("https://app.nanonets.com/api/v2/OCR/Model/", {
           method: "GET",
           headers: {
-            "Authorization": `Bearer ${apiKey}`,
+            "Authorization": `Basic ${btoa(apiKey + ":")}`,
             "Content-Type": "application/json"
           }
         });
 
         if (response.ok) {
           toast({
-            title: "Optic.dev Connection Successful",
-            description: "Your Optic.dev API key is valid and working correctly.",
+            title: "Nanonets Connection Successful",
+            description: "Your Nanonets API key is valid and working correctly.",
           });
         } else {
           throw new Error("Invalid API key or connection failed");
@@ -68,7 +68,7 @@ export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
     } catch (error) {
       console.error(`${apiType} API test error:`, error);
       toast({
-        title: `${apiType === "opticdev" ? "Optic.dev" : "OpenRouter"} Connection Failed`,
+        title: `${apiType === "nanonets" ? "Nanonets" : "OpenRouter"} Connection Failed`,
         description: error instanceof Error ? error.message : "Failed to connect. Please check your API key.",
         variant: "destructive",
       });

@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { OpticDevApiForm } from "@/components/apiConnection/OpticDevApiForm";
+import { NanonetsApiForm } from "@/components/apiConnection/NanonetsApiForm";
 import { ApiKeyTester } from "@/components/apiConnection/ApiKeyTester";
 import { ModelSelector } from "@/components/apiConnection/ModelSelector";
 
@@ -156,7 +155,7 @@ const Profile = () => {
           
           <TabsContent value="api">
             <div className="grid grid-cols-1 gap-6">
-              <OpticDevApiForm />
+              <NanonetsApiForm />
               
               <Card>
                 <CardHeader>
