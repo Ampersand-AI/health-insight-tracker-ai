@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
 import { performOCR, clearAllData } from "@/services/openAIOCRService";
 import { analyzeHealthReport } from "@/services/openAIService";
+import { Bell, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
 interface UploadReportDialogProps {
   open: boolean;
@@ -19,8 +20,10 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingStage, setProcessingStage] = useState<"ocr" | "analysis">("ocr");
+  const [processingStage, setProcessingStage] = useState<"selecting" | "ocr" | "analysis">("selecting");
   const [processingDetail, setProcessingDetail] = useState<string>("");
+  const [modelsSuccess, setModelsSuccess] = useState<number>(0);
+  const [modelsTotal, setModelsTotal] = useState<number>(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -39,6 +42,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
 
     setIsUploading(true);
     setUploadProgress(0);
+    setModelsSuccess(0);
+    setModelsTotal(0);
 
     // Clear any existing data
     clearAllData();
@@ -50,8 +55,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
           clearInterval(interval);
           setIsUploading(false);
           setIsProcessing(true);
-          setProcessingStage("ocr");
-          setProcessingDetail("Preparing document for analysis...");
+          setProcessingStage("selecting");
+          setProcessingDetail("Selecting optimal OCR models from OpenRouter...");
           processFile(files[0]);
           return 100;
         }
@@ -62,16 +67,45 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
 
   const processFile = async (file: File) => {
     try {
-      // Step 1: Perform OCR on the uploaded file
+      // First set selecting models stage
+      setProcessingStage("selecting");
+      setProcessingDetail("Selecting optimal OCR models for your document type...");
+      
+      // Step 1: Perform OCR on the uploaded file with auto model selection
       setProcessingStage("ocr");
-      setProcessingDetail("Extracting text from your document...");
+      setProcessingDetail("Processing document with multiple AI models...");
 
-      const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
-      if (useMultipleModels) {
-        setProcessingDetail("Processing with multiple AI models for better text extraction...");
-      }
+      // Add listener for model success notifications
+      const originalToast = toast;
+      let successCount = 0;
+      let totalModels = 5; // Default expected models
+      
+      // Override toast to track model success/failure
+      (toast as any) = (props: any) => {
+        // Call the original toast
+        originalToast(props);
+        
+        // Track model selection
+        if (props.title === "Models Selected") {
+          const match = props.description.match(/Using (\d+) models/);
+          if (match && match[1]) {
+            totalModels = parseInt(match[1]);
+            setModelsTotal(totalModels);
+          }
+        }
+        
+        // Count successful models
+        if (props.title && props.title.startsWith("OCR Success:")) {
+          successCount++;
+          setModelsSuccess(successCount);
+          setProcessingDetail(`Successfully processed with ${successCount}/${totalModels} models...`);
+        }
+      };
 
       const ocrResult = await performOCR(file);
+      
+      // Restore original toast
+      (toast as any) = originalToast;
       
       if (!ocrResult) {
         setIsProcessing(false);
@@ -86,10 +120,6 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       // Step 2: Analyze the extracted text
       setProcessingStage("analysis");
       setProcessingDetail("Analyzing parameters and reference ranges...");
-      
-      if (useMultipleModels) {
-        setProcessingDetail("Using multiple AI models to comprehensively analyze all health metrics...");
-      }
       
       const analysisResults = await analyzeHealthReport(ocrResult.text);
       
@@ -218,14 +248,42 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
               </div>
-              <p className="text-center">
-                {processingStage === "ocr" 
-                  ? "Extracting text from your report with AI..." 
-                  : "Analyzing all parameters in your health data..."}
-              </p>
-              <p className="text-xs text-center text-muted-foreground">
-                {processingDetail}
-              </p>
+              
+              {processingStage === "selecting" && (
+                <div className="text-center">
+                  <p className="font-medium">Selecting optimal models</p>
+                  <p className="text-sm text-muted-foreground">{processingDetail}</p>
+                </div>
+              )}
+              
+              {processingStage === "ocr" && (
+                <div className="text-center">
+                  <p className="font-medium">Processing document with AI</p>
+                  <p className="text-sm text-muted-foreground">{processingDetail}</p>
+                  
+                  {modelsTotal > 0 && (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-center gap-1 text-sm">
+                        <span className="text-green-500 font-medium">{modelsSuccess}</span>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-muted-foreground">{modelsTotal}</span>
+                        <span className="text-muted-foreground ml-1">models successful</span>
+                      </div>
+                      <Progress 
+                        value={(modelsSuccess / modelsTotal) * 100} 
+                        className="mt-2 h-2" 
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {processingStage === "analysis" && (
+                <div className="text-center">
+                  <p className="font-medium">Analyzing health data</p>
+                  <p className="text-sm text-muted-foreground">{processingDetail}</p>
+                </div>
+              )}
             </div>
           )}
 

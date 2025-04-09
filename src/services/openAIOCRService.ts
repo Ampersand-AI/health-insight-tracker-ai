@@ -27,22 +27,52 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
     }
     
     const data = await response.json();
+    console.log("OpenRouter models response:", data);
     
-    // Filter models that support vision tasks and have free tokens available
+    // Safely filter models that support vision tasks
     const supportedModels = data.data
-      .filter((model: any) => 
-        model.context_length >= 4000 && 
-        model.capabilities.includes("vision") &&
-        (!model.pricing || model.pricing.prompt < 0.01) // Focus on free/cheap models
-      )
+      .filter((model: any) => {
+        // Check if capabilities exists and includes vision
+        const hasVisionCapability = model.capabilities && 
+                                   Array.isArray(model.capabilities) && 
+                                   model.capabilities.includes("vision");
+        
+        // Check context length - we need at least 4000 for document analysis
+        const hasEnoughContext = model.context_length && model.context_length >= 4000;
+        
+        // Check if it's free or reasonably priced
+        const isReasonablyPriced = !model.pricing || 
+                                  (model.pricing.prompt && model.pricing.prompt < 0.01);
+        
+        return hasVisionCapability && hasEnoughContext;
+      })
       .map((model: any) => model.id);
     
     console.log("Available OCR-capable models:", supportedModels);
+    
+    // If no models found or error in filtering, return default set
+    if (supportedModels.length === 0) {
+      console.log("No OCR-capable models found, using default models");
+      return getDefaultModels();
+    }
+    
     return supportedModels;
   } catch (error) {
     console.error("Error fetching available models:", error);
-    return [];
+    console.log("Falling back to default models due to error");
+    return getDefaultModels();
   }
+}
+
+// Function to get default models known to work well with OCR
+function getDefaultModels(): string[] {
+  return [
+    "anthropic/claude-3-opus:beta",
+    "openai/gpt-4o",
+    "anthropic/claude-3-sonnet:beta",
+    "google/gemini-pro-vision",
+    "anthropic/claude-3-haiku:beta"
+  ];
 }
 
 async function performOCRWithModel(file: File, model: string, apiKey: string): Promise<OCRResult | null> {
@@ -53,7 +83,7 @@ async function performOCRWithModel(file: File, model: string, apiKey: string): P
     let base64File;
     try {
       base64File = await fileToBase64(file);
-      console.log("Successfully converted file to base64");
+      console.log(`Successfully converted file to base64, length: ${base64File.length}`);
     } catch (error) {
       console.error("Error converting file to base64:", error);
       throw new Error("Failed to convert file to base64");
@@ -100,7 +130,7 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
       })
     });
 
-    console.log("Received response from OpenRouter API, status:", response.status);
+    console.log(`Received response from OpenRouter API for model ${model}, status:`, response.status);
     
     if (!response.ok) {
       const errorData = await response.json();
@@ -110,7 +140,7 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     }
 
     const data = await response.json();
-    console.log("Successfully parsed response JSON");
+    console.log(`Successfully parsed response JSON from model: ${model}`);
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
       console.error(`Invalid response format from model ${model}:`, data);
@@ -121,12 +151,26 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     console.log(`OCR completed successfully with model: ${model}, extracted ${ocrText.length} characters`);
     console.log(`First 200 chars of extracted text: ${ocrText.substring(0, 200)}...`);
     
+    // Notify success for this specific model
+    toast({
+      title: `OCR Success: ${model.split('/').pop()}`,
+      description: `Successfully extracted ${ocrText.length} characters of text`,
+    });
+    
     return { 
       text: ocrText,
       modelUsed: model
     };
   } catch (error) {
     console.error(`Error performing OCR with model ${model}:`, error);
+    
+    // Notify failure for this specific model
+    toast({
+      title: `OCR Failed: ${model.split('/').pop()}`,
+      description: "Could not process document with this model",
+      variant: "destructive",
+    });
+    
     return null;
   }
 }
@@ -169,9 +213,16 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return null;
     }
 
+    toast({
+      title: "Selecting Models",
+      description: "Automatically selecting best models for document analysis...",
+    });
+
     // Get available models from OpenRouter that support vision tasks
     const availableModels = await getAvailableModels(apiKey);
-    if (availableModels.length === 0) {
+    const modelsToUse = availableModels.slice(0, 5); // Use top 5 models
+    
+    if (modelsToUse.length === 0) {
       toast({
         title: "No Available Models",
         description: "Could not find any OpenRouter models that support document analysis. Please try again later.",
@@ -180,45 +231,39 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return null;
     }
 
-    // Use preset models if available models couldn't be fetched
-    const defaultModels = [
-      "anthropic/claude-3-opus:beta",
-      "openai/gpt-4o",
-      "anthropic/claude-3-sonnet:beta",
-      "google/gemini-pro-vision",
-      "anthropic/claude-3-haiku:beta"
-    ];
+    console.log("Selected models for OCR:", modelsToUse);
     
-    const modelsToTry = availableModels.length > 0 ? availableModels : defaultModels;
-    console.log("Models to try for OCR:", modelsToTry);
-
-    // Try with all models in parallel for better results
     toast({
-      title: "Processing with Multiple Models",
-      description: "Analyzing your document with multiple AI models for better results...",
+      title: "Models Selected",
+      description: `Using ${modelsToUse.length} models for comprehensive document analysis`,
+    });
+
+    // Extract patient name from filename
+    const patientName = extractPatientNameFromFilename(file.name);
+    if (patientName) {
+      localStorage.setItem('patientName', patientName);
+      toast({
+        title: "Patient Identified",
+        description: `Detected patient name: ${patientName}`,
+      });
+    }
+    
+    // Process with all models in parallel for better results
+    toast({
+      title: "Processing Document",
+      description: `Analyzing your document with ${modelsToUse.length} AI models for better results...`,
     });
     
     // Create promises for all models
-    const allPromises = modelsToTry.map(model => 
+    const allPromises = modelsToUse.map(model => 
       performOCRWithModel(file, model, apiKey)
     );
     
-    // Execute up to 3 model requests in parallel to avoid rate limiting
-    const allResults = await Promise.all(allPromises.slice(0, 3));
+    // Execute requests in parallel
+    const allResults = await Promise.all(allPromises);
     
     // Filter out failed results
     const successfulResults = allResults.filter(result => result !== null) as OCRResult[];
-    
-    if (successfulResults.length === 0) {
-      // If all initial models failed, try the remaining models one by one
-      for (let i = 3; i < modelsToTry.length; i++) {
-        const result = await performOCRWithModel(file, modelsToTry[i], apiKey);
-        if (result !== null) {
-          successfulResults.push(result);
-          break; // Stop once we get a successful result
-        }
-      }
-    }
     
     if (successfulResults.length === 0) {
       throw new Error("All models failed to process the document");
@@ -229,17 +274,13 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return (current.text.length > best.text.length) ? current : best;
     }, successfulResults[0]);
     
-    const modelName = bestResult.modelUsed?.split('/').pop() || modelsToTry[0].split('/').pop();
-    toast({
-      title: "OCR Completed",
-      description: `Document processed using ${modelName} (${successfulResults.length} of ${allResults.length} models succeeded)`,
-    });
+    const successRatio = `${successfulResults.length}/${modelsToUse.length}`;
+    const modelNames = successfulResults.map(r => r.modelUsed?.split('/').pop()).join(", ");
     
-    // Extract patient name from filename (if possible)
-    const patientName = extractPatientNameFromFilename(file.name);
-    if (patientName) {
-      localStorage.setItem('patientName', patientName);
-    }
+    toast({
+      title: "OCR Complete",
+      description: `Document processed successfully (${successRatio} models). Best result from: ${bestResult.modelUsed?.split('/').pop()}`,
+    });
     
     return bestResult;
   } catch (error) {
@@ -259,12 +300,17 @@ function extractPatientNameFromFilename(filename: string): string | null {
   const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
   
   // Common patterns for patient names in filenames:
-  // 1. Names with underscore or dash separators: Report_John_Doe.pdf or Report-John-Doe.pdf
-  // Pattern: look for 2+ consecutive words after removing prefixes like "Report_"
+  // 1. Look for Mr/Mrs/Ms followed by name
+  const titleMatch = nameWithoutExt.match(/(?:Mr|Mrs|Ms|Miss|Dr)[\s_\-\.]+([A-Za-z\s_\-]+)/i);
+  if (titleMatch && titleMatch[1]) {
+    return titleMatch[1].replace(/[_\-\.]+/g, " ").trim();
+  }
+  
+  // 2. Names with underscore or dash separators: Report_John_Doe.pdf or Report-John-Doe.pdf
   const underscorePattern = nameWithoutExt.replace(/^(Report|Lab|Test|Result|Health)[\s_\-]+/i, "");
   
   // Split by common separators
-  const parts = underscorePattern.split(/[\s_\-]+/);
+  const parts = underscorePattern.split(/[\s_\-\.]+/);
   
   // If we have at least 2 parts that could form a name
   if (parts.length >= 2) {

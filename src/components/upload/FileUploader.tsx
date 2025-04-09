@@ -93,6 +93,12 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
     // Remove file extension
     const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     
+    // Look for common patterns like Mr/Mrs/Ms followed by name
+    const titleMatch = nameWithoutExt.match(/(?:Mr|Mrs|Ms|Miss|Dr)[\s_\-\.]+([A-Za-z\s_\-]+)/i);
+    if (titleMatch && titleMatch[1]) {
+      return titleMatch[1].replace(/[_\-\.]+/g, " ").trim();
+    }
+    
     // Common patterns for patient names in filenames:
     // 1. Names with underscore or dash separators: Report_John_Doe.pdf or Report-John-Doe.pdf
     const underscorePattern = nameWithoutExt.replace(/^(Report|Lab|Test|Result|Health)[\s_\-]+/i, "");
