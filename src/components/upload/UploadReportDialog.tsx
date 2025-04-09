@@ -8,11 +8,6 @@ import { Progress } from "@/components/ui/progress";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
 
-interface UploadReportDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
 // Sample metric generation for demo purposes
 const generateSampleMetrics = () => {
   const metrics = [
@@ -42,10 +37,22 @@ const generateSampleMetrics = () => {
     }
   ];
 
-  // Set status based on value
-  metrics[0].status = metrics[0].value > 200 ? "danger" : metrics[0].value > 190 ? "warning" : "normal";
-  metrics[1].status = metrics[1].value > 100 ? "warning" : "normal";
-  metrics[2].status = parseFloat(metrics[2].value) < 14 ? "warning" : "normal";
+  // Set status based on value - fixing TypeScript errors with proper type checking
+  metrics[0].status = typeof metrics[0].value === 'number' && metrics[0].value > 200 
+    ? "danger" 
+    : typeof metrics[0].value === 'number' && metrics[0].value > 190 
+      ? "warning" 
+      : "normal";
+  
+  metrics[1].status = typeof metrics[1].value === 'number' && metrics[1].value > 100 
+    ? "warning" 
+    : "normal";
+  
+  metrics[2].status = typeof metrics[2].value === 'string' 
+    ? parseFloat(metrics[2].value) < 14 ? "warning" : "normal"
+    : typeof metrics[2].value === 'number' && metrics[2].value < 14 
+      ? "warning" 
+      : "normal";
 
   // Generate history
   const today = new Date();
@@ -67,6 +74,11 @@ const generateSampleMetrics = () => {
 
   return metrics;
 };
+
+interface UploadReportDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
 export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
