@@ -34,6 +34,13 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
     }
   };
 
+  // Helper function to ensure values are strings
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+
   return (
     <div className="rounded-md border border-border overflow-hidden">
       <Table>
@@ -53,7 +60,7 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
               metric.status === "warning" ? "bg-amber-900/10" : ""
             }>
               <TableCell className="font-medium">{metric.name}</TableCell>
-              <TableCell>{typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value}</TableCell>
+              <TableCell>{formatValue(metric.value)}</TableCell>
               <TableCell>{metric.unit}</TableCell>
               <TableCell>{metric.range}</TableCell>
               <TableCell>{getStatusBadge(metric.status)}</TableCell>
