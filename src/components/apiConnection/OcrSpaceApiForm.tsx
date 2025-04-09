@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { ApiKeyTester } from "./ApiKeyTester";
+import { useEffect } from "react";
 
 const apiKeySchema = z.object({
   apiKey: z.string().min(10, { message: "API key must be at least 10 characters" }),
@@ -22,6 +23,14 @@ export const OcrSpaceApiForm = () => {
       apiKey: "",
     },
   });
+
+  // Load saved API key if available
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem("ocrspace_api_key");
+    if (savedApiKey) {
+      form.setValue("apiKey", savedApiKey);
+    }
+  }, [form]);
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     // Save API key to localStorage
@@ -57,7 +66,7 @@ export const OcrSpaceApiForm = () => {
                     <ApiKeyTester apiKey={field.value} apiType="ocrspace" />
                   </div>
                   <FormDescription>
-                    Your OCR Space API key is stored securely in your browser
+                    Your OCR Space API key is stored securely in your browser. Get a free key at <a href="https://ocr.space/OCRAPI" target="_blank" rel="noreferrer" className="text-primary underline">ocr.space</a>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

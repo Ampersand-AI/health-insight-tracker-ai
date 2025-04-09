@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Activity, Heart, TrendingUp, TrendingDown } from "lucide-react";
 
 interface HealthMetricCardProps {
   title: string;
@@ -28,33 +28,54 @@ export function HealthMetricCard({
     }
   };
 
+  const getStatusBg = (status: string) => {
+    switch(status) {
+      case "normal": return "bg-green-50 dark:bg-green-900/20";
+      case "warning": return "bg-amber-50 dark:bg-amber-900/20";
+      case "danger": return "bg-red-50 dark:bg-red-900/20";
+      default: return "bg-green-50 dark:bg-green-900/20";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch(status) {
+      case "normal": return <Activity className="h-4 w-4 text-health-normal" />;
+      case "warning": return <TrendingUp className="h-4 w-4 text-health-warning" />;
+      case "danger": return <Heart className="h-4 w-4 text-health-danger" />;
+      default: return <Activity className="h-4 w-4 text-health-normal" />;
+    }
+  };
+
   const getChangeIndicator = () => {
     if (!change) return null;
     
     if (change > 0) {
       return (
         <div className="flex items-center text-sm">
-          <ArrowUp className="h-4 w-4 mr-1" />
-          <span>{Math.abs(change)}% increase</span>
+          <TrendingUp className="h-4 w-4 mr-1 text-health-warning" />
+          <span className="text-health-warning">{Math.abs(change)}% increase</span>
         </div>
       );
     } else {
       return (
         <div className="flex items-center text-sm">
-          <ArrowDown className="h-4 w-4 mr-1" />
-          <span>{Math.abs(change)}% decrease</span>
+          <TrendingDown className="h-4 w-4 mr-1 text-health-normal" />
+          <span className="text-health-normal">{Math.abs(change)}% decrease</span>
         </div>
       );
     }
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle>{title}</CardTitle>
+    <Card className="overflow-hidden border-t-4 transition-all hover:shadow-md" style={{ borderTopColor: status === 'normal' ? 'var(--health-normal)' : status === 'warning' ? 'var(--health-warning)' : 'var(--health-danger)' }}>
+      <CardHeader className={`pb-2 ${getStatusBg(status)}`}>
+        <div className="flex items-center justify-between">
+          <CardTitle>{title}</CardTitle>
+          {getStatusIcon(status)}
+        </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         <div className="flex justify-between items-center">
           <div className="flex items-baseline">
             <span className={`text-3xl font-bold ${getStatusColor(status)}`}>{value}</span>

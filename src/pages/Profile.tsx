@@ -13,10 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { OcrSpaceApiForm } from "@/components/apiConnection/OcrSpaceApiForm";
 import { ApiKeyTester } from "@/components/apiConnection/ApiKeyTester";
-
-const modelSchema = z.object({
-  selectedModel: z.string().min(1, { message: "Please select a model" }),
-});
+import { ModelSelector } from "@/components/apiConnection/ModelSelector";
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -33,19 +30,11 @@ const openRouterApiSchema = z.object({
 
 const Profile = () => {
   const { toast } = useToast();
-  const [selectedModel, setSelectedModel] = useState("gpt-4o");
 
   const openRouterApiForm = useForm<z.infer<typeof openRouterApiSchema>>({
     resolver: zodResolver(openRouterApiSchema),
     defaultValues: {
       apiKey: "",
-    },
-  });
-
-  const modelForm = useForm<z.infer<typeof modelSchema>>({
-    resolver: zodResolver(modelSchema),
-    defaultValues: {
-      selectedModel: "gpt-4o",
     },
   });
 
@@ -79,14 +68,6 @@ const Profile = () => {
     toast({
       title: "OpenRouter API Key Updated",
       description: "Your OpenRouter API key has been saved",
-    });
-  };
-
-  const onSubmitModel = (data: z.infer<typeof modelSchema>) => {
-    setSelectedModel(data.selectedModel);
-    toast({
-      title: "Model Preference Updated",
-      description: `You've selected ${data.selectedModel} for analysis`,
     });
   };
 
@@ -200,7 +181,7 @@ const Profile = () => {
                               <ApiKeyTester apiKey={field.value} apiType="openrouter" />
                             </div>
                             <FormDescription>
-                              Your API key is stored securely in your browser
+                              Your API key is stored securely in your browser. Get it from <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-primary underline">openrouter.ai</a>
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -212,45 +193,7 @@ const Profile = () => {
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader>
-                  <CardTitle>AI Model Selection</CardTitle>
-                  <CardDescription>
-                    Choose which AI model to use for analyzing your reports
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...modelForm}>
-                    <form onSubmit={modelForm.handleSubmit(onSubmitModel)} className="space-y-6">
-                      <FormField
-                        control={modelForm.control}
-                        name="selectedModel"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Select Model</FormLabel>
-                            <FormControl>
-                              <select
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                {...field}
-                              >
-                                <option value="gpt-4o">GPT-4o</option>
-                                <option value="gpt-4o-mini">GPT-4o-mini</option>
-                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                <option value="claude-3-opus">Claude 3 Opus</option>
-                              </select>
-                            </FormControl>
-                            <FormDescription>
-                              Different models provide varying levels of analysis accuracy
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="submit">Save Model Preference</Button>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
+              <ModelSelector />
             </div>
           </TabsContent>
           

@@ -7,6 +7,7 @@ import { HealthMetricCard } from "@/components/dashboard/HealthMetricCard";
 import { RecentReports } from "@/components/dashboard/RecentReports";
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
+import { Activity, Calendar, FileText, Upload, TrendingUp, BarChart3 } from "lucide-react";
 
 const Dashboard = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -21,15 +22,18 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Health Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Monitor your health metrics and reports</p>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">Health Dashboard</h1>
+            <p className="text-muted-foreground mt-1 flex items-center">
+              <Calendar className="h-4 w-4 mr-2" />
+              Last updated: April 9, 2025
+            </p>
           </div>
           <Button 
             size="lg" 
-            className="mt-4 md:mt-0"
+            className="mt-4 md:mt-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all"
             onClick={handleUpload}
           >
-            Upload Report
+            <Upload className="h-4 w-4 mr-2" /> Upload Report
           </Button>
         </div>
 
@@ -61,21 +65,32 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Health Trends</CardTitle>
+          <Card className="lg:col-span-2 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+              <div className="flex items-center">
+                <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+                <CardTitle>Health Trends</CardTitle>
+              </div>
               <CardDescription>Your health metrics over time</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-[300px] flex items-center justify-center border border-dashed rounded-md">
-                <p className="text-muted-foreground">Chart will appear when you have more data</p>
+            <CardContent className="p-6">
+              <div className="h-[300px] flex flex-col items-center justify-center border border-dashed rounded-md bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950">
+                <Activity className="h-12 w-12 text-blue-300 mb-3" />
+                <p className="text-muted-foreground text-center">Chart will appear when you have more data</p>
+                <Button variant="outline" className="mt-4">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  View Detailed Analysis
+                </Button>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Reports</CardTitle>
+          <Card className="glass-morphism">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+              <div className="flex items-center">
+                <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                <CardTitle>Recent Reports</CardTitle>
+              </div>
               <CardDescription>Your latest health reports</CardDescription>
             </CardHeader>
             <CardContent>

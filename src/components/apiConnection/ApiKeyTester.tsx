@@ -26,11 +26,15 @@ export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
 
     try {
       if (apiType === "ocrspace") {
-        // Test OCR Space API
+        // Test OCR Space API with a sample base64 image
         const formData = new FormData();
         formData.append("apikey", apiKey);
         formData.append("language", "eng");
         formData.append("isOverlayRequired", "false");
+        
+        // Sample base64 image (1x1 pixel white PNG)
+        const sampleImage = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
+        formData.append("base64Image", `data:image/png;base64,${sampleImage}`);
 
         const response = await fetch(
           "https://api.ocr.space/parse/image",
@@ -63,9 +67,13 @@ export const ApiKeyTester = ({ apiKey, apiType }: ApiKeyTesterProps) => {
         });
 
         if (response.ok) {
+          const data = await response.json();
+          // Store models in localStorage for later use
+          localStorage.setItem("openrouter_models", JSON.stringify(data.data));
+          
           toast({
             title: "OpenRouter Connection Successful",
-            description: "Your OpenRouter API key is valid and working correctly.",
+            description: "Your OpenRouter API key is valid and working correctly. AI models have been loaded.",
           });
         } else {
           throw new Error("Invalid API key or connection failed");
