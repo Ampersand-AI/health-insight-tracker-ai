@@ -1,10 +1,9 @@
-
 import { toast } from "@/hooks/use-toast";
 
 // Type definitions for health report analysis
 export interface HealthMetric {
   name: string;
-  value: number;
+  value: number | string;
   unit: string;
   status: "normal" | "warning" | "danger";
   range: string;
@@ -53,7 +52,7 @@ Format your response as valid JSON with the structure:
   "metrics": [
     {
       "name": string,
-      "value": number,
+      "value": number or string,
       "unit": string,
       "status": "normal"|"warning"|"danger",
       "range": string,
@@ -67,11 +66,11 @@ Format your response as valid JSON with the structure:
   "categories": [string]
 }
 
-The detailedAnalysis should provide a comprehensive assessment of overall health based on the test results, highlighting any potential areas of concern, probable causes of abnormal results, and their clinical significance. Make sure to identify ANY and ALL parameters in the report, even those that aren't commonly tested.`
+The detailedAnalysis should provide a comprehensive assessment of overall health based on the test results, highlighting any potential areas of concern, probable causes of abnormal results, and their clinical significance. Extract EVERY parameter mentioned in the report, even if it seems unimportant.`
           },
           {
             role: "user", 
-            content: `Analyze this blood test result. Extract ALL metrics mentioned in the report, including reference ranges. Format as JSON: ${ocrText}`
+            content: `Analyze this blood test result. Extract ALL metrics mentioned in the report (even rare or unusual ones), including their reference ranges: ${ocrText}`
           }
         ],
         temperature: 0.1,
@@ -87,41 +86,81 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
     }
 
     const data = await response.json();
-    let analysisContent;
     
-    try {
-      // Check if we need to parse the content
-      if (typeof data.choices[0].message.content === 'string') {
-        analysisContent = JSON.parse(data.choices[0].message.content);
-      } else {
-        analysisContent = data.choices[0].message.content;
-      }
-      
-      console.log("Analysis result:", analysisContent);
-    } catch (error) {
-      console.error("Error parsing JSON response:", error);
-      throw new Error("Invalid response format from OpenRouter");
+    // Extract the content from the response
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Invalid API response structure:", data);
+      return null;
     }
     
-    console.log("Analysis result obtained");
+    const contentText = data.choices[0].message.content;
+    console.log("Raw content response:", contentText);
     
-    // Add empty history arrays to each metric
-    const metricsWithHistory = analysisContent.metrics.map((metric: any) => ({
-      ...metric,
-      history: [],
-      // Make sure value is a number when possible
-      value: typeof metric.value === 'string' && !isNaN(parseFloat(metric.value)) 
-        ? parseFloat(metric.value) 
-        : metric.value,
-      // Ensure category exists
-      category: metric.category || "Other"
-    }));
+    // Try to parse the JSON response, handling different response formats
+    let analysisContent;
+    try {
+      // If the content is already an object, use it directly
+      if (typeof contentText === 'object') {
+        analysisContent = contentText;
+      } else if (typeof contentText === 'string') {
+        // Try to extract JSON if it's wrapped in markdown code blocks or text
+        const jsonMatch = contentText.match(/```(?:json)?([\s\S]*?)```/) || 
+                          contentText.match(/({[\s\S]*})/) ||
+                          [null, contentText];
+        
+        const jsonText = jsonMatch[1]?.trim() || contentText;
+        analysisContent = JSON.parse(jsonText);
+      }
+      
+      if (!analysisContent || !analysisContent.metrics) {
+        // If we couldn't parse proper JSON or the metrics are missing, create a basic structure
+        analysisContent = {
+          metrics: [],
+          recommendations: ["Unable to extract specific metrics from this report format. Please consult your healthcare provider for interpretation."],
+          summary: "The analysis could not extract structured metrics from this report format.",
+          detailedAnalysis: "The report format could not be properly parsed into structured metrics. The OCR text has been preserved for reference."
+        };
+      }
+      
+      console.log("Parsed analysis result:", analysisContent);
+    } catch (error) {
+      console.error("Error parsing model response:", error);
+      console.log("Failed content:", contentText);
+      // Return a basic structure if parsing fails
+      return {
+        metrics: [],
+        recommendations: ["Unable to analyze the report format. Please consult your healthcare provider for interpretation."],
+        summary: "The analysis encountered an error when processing this report.",
+        detailedAnalysis: "There was an error processing the report content. The OCR text has been preserved for reference.",
+        modelUsed: model
+      };
+    }
+    
+    // Add empty history arrays to each metric and ensure values are properly formatted
+    const metricsWithHistory = (analysisContent.metrics || []).map((metric: any) => {
+      // Ensure the value is a number when possible, or keep as string if not
+      let value = metric.value;
+      if (typeof value === 'string' && !isNaN(parseFloat(value)) && !value.includes('/')) {
+        value = parseFloat(value);
+      }
+      
+      return {
+        name: String(metric.name || "Unnamed Parameter"),
+        value: value,
+        unit: String(metric.unit || ""),
+        status: metric.status || "normal",
+        range: String(metric.range || "Not specified"),
+        history: [],
+        description: String(metric.description || ""),
+        category: String(metric.category || "Other")
+      };
+    });
     
     return {
       metrics: metricsWithHistory,
-      recommendations: analysisContent.recommendations,
-      summary: analysisContent.summary,
-      detailedAnalysis: analysisContent.detailedAnalysis,
+      recommendations: analysisContent.recommendations || [],
+      summary: analysisContent.summary || "",
+      detailedAnalysis: analysisContent.detailedAnalysis || "",
       categories: analysisContent.categories || [],
       modelUsed: model
     };
@@ -160,7 +199,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     let result = await analyzeWithModel(ocrText, primaryModel, apiKey);
     
     // If primary model failed and fallback is enabled, try fallback models
-    if (!result && useMultipleModels && fallbackModels.length > 0) {
+    if ((!result || result.metrics.length === 0) && useMultipleModels && fallbackModels.length > 0) {
       console.log("Primary model failed, trying fallback models");
       
       toast({
@@ -169,14 +208,17 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
       });
       
       for (const fallbackModel of fallbackModels) {
-        result = await analyzeWithModel(ocrText, fallbackModel, apiKey);
-        if (result) {
-          console.log(`Successfully analyzed with fallback model: ${fallbackModel}`);
-          toast({
-            title: "Analysis Complete",
-            description: `Analysis completed using fallback model: ${fallbackModel.split('/').pop()}`,
-          });
-          break;
+        const fallbackResult = await analyzeWithModel(ocrText, fallbackModel, apiKey);
+        
+        // Only use the fallback if it extracted metrics and is better than current result
+        if (fallbackResult && (!result || fallbackResult.metrics.length > result.metrics.length)) {
+          result = fallbackResult;
+          console.log(`Successfully analyzed with fallback model: ${fallbackModel} (found ${fallbackResult.metrics.length} metrics)`);
+          
+          // If we have a good number of metrics, stop trying more models
+          if (fallbackResult.metrics.length > 5) {
+            break;
+          }
         }
       }
     }
@@ -185,8 +227,13 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
       const modelName = result.modelUsed?.split('/').pop() || primaryModel.split('/').pop();
       toast({
         title: "Analysis Complete",
-        description: `Health report analyzed successfully using ${modelName}`,
+        description: `Health report analyzed successfully using ${modelName} (${result.metrics.length} parameters found)`,
       });
+      
+      // Remove all historical data by storing only the current report
+      // This effectively clears history per the user's request
+      localStorage.removeItem('scannedReports');
+      
       return result;
     } else {
       throw new Error("All models failed to analyze the report");

@@ -103,7 +103,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         categories: analysisResults.categories || []
       };
 
-      // Clear existing reports to start fresh (as requested)
+      // Store only the current report (removes history as requested)
       localStorage.setItem('scannedReports', JSON.stringify([newReport]));
 
       setIsProcessing(false);
@@ -158,7 +158,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         <DialogHeader>
           <DialogTitle>Upload Health Report</DialogTitle>
           <DialogDescription>
-            Upload your blood report in PDF or image format for AI analysis
+            Upload your health report in PDF or image format for comprehensive AI analysis
           </DialogDescription>
         </DialogHeader>
 
@@ -184,13 +184,13 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               </div>
               <p className="text-center">
                 {processingStage === "ocr" 
-                  ? "Extracting text from your report with OpenRouter..." 
-                  : "Analyzing your health data with OpenRouter..."}
+                  ? "Extracting text from your report with AI..." 
+                  : "Analyzing all parameters in your health data..."}
               </p>
               <p className="text-xs text-center text-muted-foreground">
                 {processingStage === "ocr"
-                  ? "Our AI is reading and extracting all parameters from your document"
-                  : "Our AI is identifying all health metrics and generating detailed recommendations"}
+                  ? "Our AI is reading and extracting all text and values from your document"
+                  : "Our AI is identifying all health metrics, ranges, and generating detailed recommendations"}
               </p>
             </div>
           )}
@@ -200,6 +200,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               <p>Supported formats: PDF, JPG, PNG</p>
               <p>Maximum file size: 10MB</p>
               <p>Your data is securely processed and never shared</p>
+              <p className="mt-2 text-xs italic">All parameters including reference ranges will be extracted</p>
             </div>
           )}
         </div>

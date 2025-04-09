@@ -90,7 +90,9 @@ export function HealthMetricCard({
       <CardContent className="pt-4">
         <div className="flex justify-between items-center">
           <div className="flex items-baseline">
-            <span className={`text-3xl font-bold ${getStatusColor(status)}`}>{displayValue}</span>
+            <span className={`text-3xl font-bold ${getStatusColor(status)}`}>
+              {typeof displayValue === 'string' ? displayValue : displayValue.toLocaleString()}
+            </span>
             <span className="ml-1 text-sm text-muted-foreground">{unit}</span>
           </div>
         </div>

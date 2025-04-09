@@ -14,8 +14,17 @@ async function performOCRWithModel(file: File, model: string, apiKey: string): P
     // Convert the file to base64
     const base64File = await fileToBase64(file);
     
-    // Prepare the prompt
-    const prompt = `Please analyze this image and extract all the text content from it. This is a health report or medical lab result document that needs to be processed. Extract ALL text accurately, preserving numbers, units, reference ranges, and any important information. Include ALL parameters mentioned in the report, even rare or uncommon ones.`;
+    // Prepare the prompt with more specific instructions
+    const prompt = `Please analyze this image and extract ALL the text content from it. This is a health report or medical lab result document.
+    
+1. Extract ALL text exactly as it appears, preserving the exact layout and formatting where possible
+2. Include ALL parameter names, values, units, and reference ranges
+3. Preserve ALL numeric values and units precisely
+4. Include section headers, titles, and labels
+5. Capture ALL footnotes and additional information
+6. Don't summarize or interpret - extract the complete text exactly as it appears
+
+The text extraction needs to be exhaustive and complete, as it will be used for medical analysis.`;
 
     // Make the API call to OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -36,7 +45,7 @@ async function performOCRWithModel(file: File, model: string, apiKey: string): P
             ]
           }
         ],
-        temperature: 0.2,
+        temperature: 0.1,
         max_tokens: 4000
       })
     });
