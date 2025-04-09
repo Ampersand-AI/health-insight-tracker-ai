@@ -7,6 +7,44 @@ export interface OCRResult {
   modelUsed?: string;
 }
 
+// Function to get available models from OpenRouter that support vision tasks
+async function getAvailableModels(apiKey: string): Promise<string[]> {
+  try {
+    console.log("Fetching available models from OpenRouter");
+    
+    const response = await fetch("https://openrouter.ai/api/v1/models", {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": window.location.origin
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("OpenRouter API error when fetching models:", errorData);
+      return [];
+    }
+    
+    const data = await response.json();
+    
+    // Filter models that support vision tasks and have free tokens available
+    const supportedModels = data.data
+      .filter((model: any) => 
+        model.context_length >= 4000 && 
+        model.capabilities.includes("vision") &&
+        (!model.pricing || model.pricing.prompt < 0.01) // Focus on free/cheap models
+      )
+      .map((model: any) => model.id);
+    
+    console.log("Available OCR-capable models:", supportedModels);
+    return supportedModels;
+  } catch (error) {
+    console.error("Error fetching available models:", error);
+    return [];
+  }
+}
+
 async function performOCRWithModel(file: File, model: string, apiKey: string): Promise<OCRResult | null> {
   try {
     console.log(`Attempting OCR with model: ${model} for file: ${file.name} (${file.type}, ${file.size} bytes)`);
@@ -99,16 +137,6 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
     clearAllData();
     
     const apiKey = localStorage.getItem("openrouter_api_key");
-    const primaryModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
-    const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
-    const fallbackModelsStr = localStorage.getItem("openrouter_fallback_models") || "[]";
-    let fallbackModels = JSON.parse(fallbackModelsStr);
-    
-    // Limit to maximum 8 fallback models
-    if (fallbackModels.length > 8) {
-      fallbackModels = fallbackModels.slice(0, 8);
-    }
-    
     if (!apiKey) {
       toast({
         title: "API Key Missing",
@@ -118,7 +146,7 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return null;
     }
 
-    console.log(`Performing OCR on file: ${file.name} (${file.type}, ${file.size} bytes) using model: ${primaryModel}`);
+    console.log(`Performing OCR on file: ${file.name} (${file.type}, ${file.size} bytes)`);
     
     // Check if file type is supported
     if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
@@ -141,34 +169,56 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return null;
     }
 
-    // Try with all models in parallel for better results
-    let allResults: (OCRResult | null)[] = [];
-    
-    if (useMultipleModels && fallbackModels.length > 0) {
-      console.log("Using multiple models for OCR");
+    // Get available models from OpenRouter that support vision tasks
+    const availableModels = await getAvailableModels(apiKey);
+    if (availableModels.length === 0) {
       toast({
-        title: "Processing with Multiple Models",
-        description: "Analyzing your document with multiple AI models for better results...",
+        title: "No Available Models",
+        description: "Could not find any OpenRouter models that support document analysis. Please try again later.",
+        variant: "destructive",
       });
-      
-      // Start with primary model
-      const primaryPromise = performOCRWithModel(file, primaryModel, apiKey);
-      
-      // Create promises for all fallback models
-      const fallbackPromises = fallbackModels.map(model => 
-        performOCRWithModel(file, model, apiKey)
-      );
-      
-      // Execute all promises in parallel
-      allResults = await Promise.all([primaryPromise, ...fallbackPromises]);
-    } else {
-      // Just use primary model
-      const result = await performOCRWithModel(file, primaryModel, apiKey);
-      allResults = [result];
+      return null;
     }
+
+    // Use preset models if available models couldn't be fetched
+    const defaultModels = [
+      "anthropic/claude-3-opus:beta",
+      "openai/gpt-4o",
+      "anthropic/claude-3-sonnet:beta",
+      "google/gemini-pro-vision",
+      "anthropic/claude-3-haiku:beta"
+    ];
+    
+    const modelsToTry = availableModels.length > 0 ? availableModels : defaultModels;
+    console.log("Models to try for OCR:", modelsToTry);
+
+    // Try with all models in parallel for better results
+    toast({
+      title: "Processing with Multiple Models",
+      description: "Analyzing your document with multiple AI models for better results...",
+    });
+    
+    // Create promises for all models
+    const allPromises = modelsToTry.map(model => 
+      performOCRWithModel(file, model, apiKey)
+    );
+    
+    // Execute up to 3 model requests in parallel to avoid rate limiting
+    const allResults = await Promise.all(allPromises.slice(0, 3));
     
     // Filter out failed results
     const successfulResults = allResults.filter(result => result !== null) as OCRResult[];
+    
+    if (successfulResults.length === 0) {
+      // If all initial models failed, try the remaining models one by one
+      for (let i = 3; i < modelsToTry.length; i++) {
+        const result = await performOCRWithModel(file, modelsToTry[i], apiKey);
+        if (result !== null) {
+          successfulResults.push(result);
+          break; // Stop once we get a successful result
+        }
+      }
+    }
     
     if (successfulResults.length === 0) {
       throw new Error("All models failed to process the document");
@@ -179,11 +229,17 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
       return (current.text.length > best.text.length) ? current : best;
     }, successfulResults[0]);
     
-    const modelName = bestResult.modelUsed?.split('/').pop() || primaryModel.split('/').pop();
+    const modelName = bestResult.modelUsed?.split('/').pop() || modelsToTry[0].split('/').pop();
     toast({
       title: "OCR Completed",
       description: `Document processed using ${modelName} (${successfulResults.length} of ${allResults.length} models succeeded)`,
     });
+    
+    // Extract patient name from filename (if possible)
+    const patientName = extractPatientNameFromFilename(file.name);
+    if (patientName) {
+      localStorage.setItem('patientName', patientName);
+    }
     
     return bestResult;
   } catch (error) {
@@ -195,6 +251,33 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
     });
     return null;
   }
+}
+
+// Helper function to extract patient name from filename
+function extractPatientNameFromFilename(filename: string): string | null {
+  // Remove file extension
+  const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+  
+  // Common patterns for patient names in filenames:
+  // 1. Names with underscore or dash separators: Report_John_Doe.pdf or Report-John-Doe.pdf
+  // Pattern: look for 2+ consecutive words after removing prefixes like "Report_"
+  const underscorePattern = nameWithoutExt.replace(/^(Report|Lab|Test|Result|Health)[\s_\-]+/i, "");
+  
+  // Split by common separators
+  const parts = underscorePattern.split(/[\s_\-]+/);
+  
+  // If we have at least 2 parts that could form a name
+  if (parts.length >= 2) {
+    // Check if any parts look like a name (not just numbers or single characters)
+    const nameParts = parts.filter(part => part.length > 1 && !/^\d+$/.test(part));
+    
+    if (nameParts.length >= 2) {
+      // Format nicely with spaces
+      return nameParts.join(" ");
+    }
+  }
+  
+  return null;
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -232,6 +315,6 @@ function fileToBase64(file: File): Promise<string> {
 export function clearAllData(): void {
   console.log("Clearing all stored health data");
   localStorage.removeItem('scannedReports');
+  localStorage.removeItem('patientName');
   // Don't show toast here as it might be confusing during the upload process
 }
-

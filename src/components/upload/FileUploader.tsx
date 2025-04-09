@@ -1,7 +1,7 @@
 
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, File, FileType } from "lucide-react";
+import { Upload, File, FileType, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface FileUploaderProps {
@@ -75,7 +75,43 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
     setSelectedFile(selectedFile);
     
     console.log("File validated successfully:", selectedFile.name);
+    
+    // Try to extract patient name from filename for better UX
+    const patientName = extractPatientName(selectedFile.name);
+    if (patientName) {
+      toast({
+        title: "Patient detected",
+        description: `Detected patient name: ${patientName}`,
+      });
+    }
+    
     onFilesSelected([selectedFile]);
+  };
+
+  // Try to extract a patient name from the filename
+  const extractPatientName = (filename: string): string | null => {
+    // Remove file extension
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    
+    // Common patterns for patient names in filenames:
+    // 1. Names with underscore or dash separators: Report_John_Doe.pdf or Report-John-Doe.pdf
+    const underscorePattern = nameWithoutExt.replace(/^(Report|Lab|Test|Result|Health)[\s_\-]+/i, "");
+    
+    // Split by common separators
+    const parts = underscorePattern.split(/[\s_\-]+/);
+    
+    // If we have at least 2 parts that could form a name
+    if (parts.length >= 2) {
+      // Check if any parts look like a name (not just numbers or single characters)
+      const nameParts = parts.filter(part => part.length > 1 && !/^\d+$/.test(part));
+      
+      if (nameParts.length >= 2) {
+        // Format nicely with spaces
+        return nameParts.join(" ");
+      }
+    }
+    
+    return null;
   };
 
   const getFileIcon = (file: File) => {
@@ -92,6 +128,13 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
     if (bytes < 1024) return bytes + ' bytes';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -122,14 +165,24 @@ export function FileUploader({ onFilesSelected }: FileUploaderProps) {
                 <p className="font-medium text-gray-900 truncate">{selectedFile.name}</p>
                 <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setSelectedFile(null)}
-                className="text-gray-500 hover:text-destructive"
-              >
-                Change
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleRemoveFile}
+                  className="text-gray-500 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-gray-500 hover:text-primary"
+                >
+                  Change
+                </Button>
+              </div>
             </div>
           </div>
         )}

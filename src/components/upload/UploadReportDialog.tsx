@@ -7,7 +7,7 @@ import { FileUploader } from "./FileUploader";
 import { Progress } from "@/components/ui/progress";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
-import { performOCR } from "@/services/openAIOCRService";
+import { performOCR, clearAllData } from "@/services/openAIOCRService";
 import { analyzeHealthReport } from "@/services/openAIService";
 
 interface UploadReportDialogProps {
@@ -41,7 +41,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
     setUploadProgress(0);
 
     // Clear any existing data
-    localStorage.removeItem('scannedReports');
+    clearAllData();
 
     // Simulate file upload progress
     const interval = setInterval(() => {
@@ -106,10 +106,26 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       const reportId = uuidv4();
       const reportType = determineReportType(file.name, ocrResult.text);
       
+      // Get patient name from localStorage (set during OCR if available)
+      const patientNameFromFile = localStorage.getItem('patientName');
+      if (patientNameFromFile && (!analysisResults.patientInfo || !analysisResults.patientInfo.name)) {
+        if (!analysisResults.patientInfo) {
+          analysisResults.patientInfo = { name: patientNameFromFile };
+        } else {
+          analysisResults.patientInfo.name = patientNameFromFile;
+        }
+      }
+      
+      // Create a report title based on patient name if available
+      let reportTitle = file.name.replace(/\.[^/.]+$/, "");
+      if (analysisResults.patientInfo?.name) {
+        reportTitle = `${analysisResults.patientInfo.name}'s Health Report`;
+      }
+      
       // Create a new report with the analysis results
       const newReport = {
         id: reportId,
-        title: file.name.replace(/\.[^/.]+$/, "") || "Health Report",
+        title: reportTitle || "Health Report",
         date: new Date().toISOString(),
         type: reportType,
         status: "Analyzed",

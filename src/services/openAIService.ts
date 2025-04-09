@@ -114,6 +114,12 @@ function mergeMetrics(allMetrics: HealthMetric[][]): HealthMetric[] {
 function mergePatientInfo(allPatientInfos: PatientInfo[]): PatientInfo {
   const merged: PatientInfo = {};
   
+  // First check if we have a name from the filename
+  const patientNameFromFile = localStorage.getItem('patientName');
+  if (patientNameFromFile) {
+    merged.name = patientNameFromFile;
+  }
+  
   for (const info of allPatientInfos) {
     if (!info) continue;
     
@@ -121,6 +127,11 @@ function mergePatientInfo(allPatientInfos: PatientInfo[]): PatientInfo {
     Object.entries(info).forEach(([key, value]) => {
       if (value && typeof value === 'string' && value.trim() !== '') {
         const existingValue = merged[key as keyof PatientInfo];
+        
+        // Skip if we already have a name from the filename and this is the name field
+        if (key === 'name' && patientNameFromFile) {
+          return;
+        }
         
         // If we don't have this field yet, or the new value is longer (possibly more detailed)
         if (!existingValue || 
@@ -397,8 +408,16 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
         modelUsed: allResults.map(r => r.modelUsed).join(", ")
       };
     } else {
-      // Just use the single result
+      // Just use the single result but update patient info with any name from filename
       mergedResult = allResults[0];
+      
+      // Update patient info with name from filename
+      const patientNameFromFile = localStorage.getItem('patientName');
+      if (patientNameFromFile && mergedResult.patientInfo) {
+        mergedResult.patientInfo.name = patientNameFromFile;
+      } else if (patientNameFromFile) {
+        mergedResult.patientInfo = { name: patientNameFromFile };
+      }
     }
     
     const modelNames = mergedResult.modelUsed?.split(',').map(m => m.split('/').pop()).join(", ") || 
@@ -427,6 +446,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
 // Clear all stored health data
 export function clearAllHealthData(): void {
   localStorage.removeItem('scannedReports');
+  localStorage.removeItem('patientName');
   toast({
     title: "Data Cleared",
     description: "All health data has been removed from your device.",
