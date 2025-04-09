@@ -98,7 +98,9 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         metrics: analysisResults.metrics,
         recommendations: analysisResults.recommendations,
         rawText: ocrResult.text,
-        summary: analysisResults.summary
+        summary: analysisResults.summary,
+        detailedAnalysis: analysisResults.detailedAnalysis,
+        categories: analysisResults.categories || []
       };
 
       // Clear existing reports to start fresh (as requested)
@@ -108,15 +110,17 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       onOpenChange(false);
       
       // Count risk metrics
-      const riskMetrics = analysisResults.metrics.filter(
-        metric => metric.status === "warning" || metric.status === "danger"
+      const highRiskMetrics = analysisResults.metrics.filter(
+        metric => metric.status === "danger"
+      );
+      
+      const mediumRiskMetrics = analysisResults.metrics.filter(
+        metric => metric.status === "warning"
       );
       
       toast({
         title: "Analysis Complete",
-        description: riskMetrics.length > 0 
-          ? `Found ${riskMetrics.length} parameters that require attention.` 
-          : "All parameters are within normal ranges.",
+        description: `Found ${highRiskMetrics.length} high risk and ${mediumRiskMetrics.length} medium risk parameters that require attention.`,
       });
 
       // Navigate to the new report
@@ -139,6 +143,12 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
     if (lowerName.includes('blood') || lowerText.includes('blood')) return 'blood';
     if (lowerName.includes('cholesterol') || lowerText.includes('cholesterol')) return 'cholesterol';
     if (lowerName.includes('cbc') || lowerText.includes('cbc') || lowerText.includes('complete blood count')) return 'cbc';
+    if (lowerText.includes('metabolic') || lowerText.includes('panel')) return 'metabolic';
+    if (lowerText.includes('liver') || lowerText.includes('hepatic')) return 'liver';
+    if (lowerText.includes('kidney') || lowerText.includes('renal')) return 'kidney';
+    if (lowerText.includes('thyroid')) return 'thyroid';
+    if (lowerText.includes('lipid')) return 'lipid';
+    if (lowerText.includes('glucose') || lowerText.includes('sugar')) return 'glucose';
     return 'blood'; // Default type
   };
 
@@ -179,8 +189,8 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               </p>
               <p className="text-xs text-center text-muted-foreground">
                 {processingStage === "ocr"
-                  ? "Our AI is reading and extracting the text from your document"
-                  : "Our AI is identifying health metrics and generating recommendations"}
+                  ? "Our AI is reading and extracting all parameters from your document"
+                  : "Our AI is identifying all health metrics and generating detailed recommendations"}
               </p>
             </div>
           )}

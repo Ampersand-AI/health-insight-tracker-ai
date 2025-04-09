@@ -13,6 +13,7 @@ export interface HealthMetric {
     value: number;
   }>;
   description?: string;
+  category?: string;
 }
 
 export interface AnalysisResult {
@@ -21,6 +22,7 @@ export interface AnalysisResult {
   summary?: string;
   detailedAnalysis?: string;
   modelUsed?: string;
+  categories?: string[];
 }
 
 async function analyzeWithModel(ocrText: string, model: string, apiKey: string): Promise<AnalysisResult | null> {
@@ -44,6 +46,7 @@ async function analyzeWithModel(ocrText: string, model: string, apiKey: string):
 1. Determine its status: 'normal' if within range, 'warning' if slightly outside range, or 'danger' if significantly outside range
 2. Provide a detailed description of what the parameter measures and its significance
 3. Include reference ranges for each parameter
+4. Categorize each parameter (e.g., "Electrolytes", "Lipids", "Liver Function", "Kidney Function", "Blood Cell Counts", etc.)
 
 Format your response as valid JSON with the structure:
 {
@@ -54,15 +57,17 @@ Format your response as valid JSON with the structure:
       "unit": string,
       "status": "normal"|"warning"|"danger",
       "range": string,
-      "description": string
+      "description": string,
+      "category": string
     }
   ],
   "recommendations": [string],
   "summary": string,
-  "detailedAnalysis": string
+  "detailedAnalysis": string,
+  "categories": [string]
 }
 
-The detailedAnalysis should provide a comprehensive assessment of overall health based on the test results, highlighting any potential areas of concern, probable causes of abnormal results, and their clinical significance.`
+The detailedAnalysis should provide a comprehensive assessment of overall health based on the test results, highlighting any potential areas of concern, probable causes of abnormal results, and their clinical significance. Make sure to identify ANY and ALL parameters in the report, even those that aren't commonly tested.`
           },
           {
             role: "user", 
@@ -70,7 +75,8 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
           }
         ],
         temperature: 0.1,
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
+        max_tokens: 4000
       })
     });
 
@@ -102,7 +108,13 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
     // Add empty history arrays to each metric
     const metricsWithHistory = analysisContent.metrics.map((metric: any) => ({
       ...metric,
-      history: []
+      history: [],
+      // Make sure value is a number when possible
+      value: typeof metric.value === 'string' && !isNaN(parseFloat(metric.value)) 
+        ? parseFloat(metric.value) 
+        : metric.value,
+      // Ensure category exists
+      category: metric.category || "Other"
     }));
     
     return {
@@ -110,6 +122,7 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
       recommendations: analysisContent.recommendations,
       summary: analysisContent.summary,
       detailedAnalysis: analysisContent.detailedAnalysis,
+      categories: analysisContent.categories || [],
       modelUsed: model
     };
   } catch (error) {
@@ -124,7 +137,12 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     const primaryModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
     const fallbackModelsStr = localStorage.getItem("openrouter_fallback_models") || "[]";
-    const fallbackModels = JSON.parse(fallbackModelsStr);
+    let fallbackModels = JSON.parse(fallbackModelsStr);
+    
+    // Limit to maximum 8 fallback models
+    if (fallbackModels.length > 8) {
+      fallbackModels = fallbackModels.slice(0, 8);
+    }
     
     if (!apiKey) {
       toast({

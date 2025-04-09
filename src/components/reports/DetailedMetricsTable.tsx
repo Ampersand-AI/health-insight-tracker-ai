@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Filter } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -17,7 +17,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 interface DetailedMetricsTableProps {
   metrics: HealthMetric[];
@@ -25,9 +26,26 @@ interface DetailedMetricsTableProps {
 
 export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Get unique categories from metrics
+  const categories = ["all", ...new Set(metrics.map(metric => metric.category || "Other"))];
+
+  // Filter metrics by category and search query
+  const filteredMetrics = metrics.filter(metric => {
+    const matchesCategory = categoryFilter === "all" || metric.category === categoryFilter || 
+      (!metric.category && categoryFilter === "Other");
+    
+    const matchesSearch = searchQuery === "" || 
+      metric.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (metric.description && metric.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    return matchesCategory && matchesSearch;
+  });
 
   // Sort metrics by status (danger first, then warning, then normal)
-  const sortedMetrics = [...metrics].sort((a, b) => {
+  const sortedMetrics = [...filteredMetrics].sort((a, b) => {
     const statusOrder = { danger: 0, warning: 1, normal: 2 };
     return statusOrder[a.status] - statusOrder[b.status];
   });
@@ -62,6 +80,34 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search parameters..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+        </div>
+        <div className="w-full md:w-64">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger>
+              <div className="flex items-center">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by category" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category === "all" ? "All Categories" : category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="rounded-md border border-border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -75,54 +121,70 @@ export function DetailedMetricsTable({ metrics }: DetailedMetricsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedMetrics.map((metric) => (
-              <>
-                <TableRow 
-                  key={metric.name} 
-                  className={
-                    metric.status === "danger" ? "bg-red-900/10" :
-                    metric.status === "warning" ? "bg-amber-900/10" : ""
-                  }
-                >
-                  <TableCell className="font-medium">{metric.name}</TableCell>
-                  <TableCell>{formatValue(metric.value)}</TableCell>
-                  <TableCell>{formatValue(metric.unit)}</TableCell>
-                  <TableCell>{formatValue(metric.range)}</TableCell>
-                  <TableCell>{getStatusBadge(metric.status)}</TableCell>
-                  <TableCell>
-                    {metric.description ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button 
-                              onClick={() => toggleMetricDetails(metric.name)}
-                              className="p-1 rounded-full hover:bg-muted"
-                            >
-                              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="max-w-xs">
-                            <p className="text-xs">Click for detailed information</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-                {expandedMetric === metric.name && metric.description && (
-                  <TableRow className="bg-muted/30">
-                    <TableCell colSpan={6} className="p-0">
-                      <div className="p-3 text-sm">
-                        <h4 className="font-medium mb-1">About {metric.name}</h4>
-                        <p className="text-muted-foreground">{metric.description}</p>
-                      </div>
+            {sortedMetrics.length > 0 ? (
+              sortedMetrics.map((metric) => (
+                <>
+                  <TableRow 
+                    key={metric.name} 
+                    className={
+                      metric.status === "danger" ? "bg-red-900/10" :
+                      metric.status === "warning" ? "bg-amber-900/10" : ""
+                    }
+                  >
+                    <TableCell className="font-medium">
+                      {metric.name}
+                      {metric.category && (
+                        <div className="text-xs text-muted-foreground mt-1">{metric.category}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatValue(metric.value)}</TableCell>
+                    <TableCell>{formatValue(metric.unit)}</TableCell>
+                    <TableCell>{formatValue(metric.range)}</TableCell>
+                    <TableCell>{getStatusBadge(metric.status)}</TableCell>
+                    <TableCell>
+                      {metric.description ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button 
+                                onClick={() => toggleMetricDetails(metric.name)}
+                                className="p-1 rounded-full hover:bg-muted"
+                              >
+                                <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-xs">
+                              <p className="text-xs">Click for detailed information</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : null}
                     </TableCell>
                   </TableRow>
-                )}
-              </>
-            ))}
+                  {expandedMetric === metric.name && metric.description && (
+                    <TableRow className="bg-muted/30">
+                      <TableCell colSpan={6} className="p-0">
+                        <div className="p-3 text-sm">
+                          <h4 className="font-medium mb-1">About {metric.name}</h4>
+                          <p className="text-muted-foreground">{metric.description}</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  No metrics found matching your filters.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
+      </div>
+      <div className="text-xs text-muted-foreground text-right">
+        Showing {sortedMetrics.length} of {metrics.length} parameters
       </div>
     </div>
   );

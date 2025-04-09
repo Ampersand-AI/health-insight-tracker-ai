@@ -15,7 +15,7 @@ async function performOCRWithModel(file: File, model: string, apiKey: string): P
     const base64File = await fileToBase64(file);
     
     // Prepare the prompt
-    const prompt = `Please analyze this image and extract all the text content from it. This is a health report or medical lab result document that needs to be processed. Extract ALL text accurately, preserving numbers, units, reference ranges, and any important information.`;
+    const prompt = `Please analyze this image and extract all the text content from it. This is a health report or medical lab result document that needs to be processed. Extract ALL text accurately, preserving numbers, units, reference ranges, and any important information. Include ALL parameters mentioned in the report, even rare or uncommon ones.`;
 
     // Make the API call to OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -72,7 +72,12 @@ export async function performOCR(file: File): Promise<OCRResult | null> {
     const primaryModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
     const fallbackModelsStr = localStorage.getItem("openrouter_fallback_models") || "[]";
-    const fallbackModels = JSON.parse(fallbackModelsStr);
+    let fallbackModels = JSON.parse(fallbackModelsStr);
+    
+    // Limit to maximum 8 fallback models
+    if (fallbackModels.length > 8) {
+      fallbackModels = fallbackModels.slice(0, 8);
+    }
     
     if (!apiKey) {
       toast({

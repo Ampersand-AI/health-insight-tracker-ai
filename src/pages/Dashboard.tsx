@@ -7,21 +7,28 @@ import { HealthMetricCard } from "@/components/dashboard/HealthMetricCard";
 import { RecentReports } from "@/components/dashboard/RecentReports";
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { Activity, AlertTriangle, Calendar, FileText, Upload, TrendingUp, BarChart3, Trash2 } from "lucide-react";
+import { Activity, AlertTriangle, Calendar, FileText, Upload, TrendingUp, BarChart3, Trash2, AlertCircle, Shield } from "lucide-react";
 import { HealthMetric, clearAllHealthData } from "@/services/openAIService";
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Report {
   id: string;
   metrics: HealthMetric[];
+  summary?: string;
+  detailedAnalysis?: string;
+  categories?: string[];
 }
 
 const Dashboard = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [riskMetrics, setRiskMetrics] = useState<HealthMetric[]>([]);
+  const [highRiskMetrics, setHighRiskMetrics] = useState<HealthMetric[]>([]);
+  const [mediumRiskMetrics, setMediumRiskMetrics] = useState<HealthMetric[]>([]);
+  const [lowRiskMetrics, setLowRiskMetrics] = useState<HealthMetric[]>([]);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasReports, setHasReports] = useState(false);
+  const [summary, setSummary] = useState<string | undefined>();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -47,11 +54,24 @@ const Dashboard = () => {
         setHasReports(parsedReports.length > 0);
         
         if (parsedReports.length > 0 && parsedReports[0].metrics) {
-          // Filter only risk metrics (warning or danger)
-          const atRiskMetrics = parsedReports[0].metrics.filter(
-            metric => metric.status === "warning" || metric.status === "danger"
+          // Filter risk metrics by risk level
+          const highRisk = parsedReports[0].metrics.filter(
+            metric => metric.status === "danger"
           );
-          setRiskMetrics(atRiskMetrics);
+          setHighRiskMetrics(highRisk);
+          
+          const mediumRisk = parsedReports[0].metrics.filter(
+            metric => metric.status === "warning"
+          );
+          setMediumRiskMetrics(mediumRisk);
+          
+          const lowRisk = parsedReports[0].metrics.filter(
+            metric => metric.status === "normal"
+          );
+          setLowRiskMetrics(lowRisk);
+          
+          // Set summary if available
+          setSummary(parsedReports[0].summary);
         }
       } catch (error) {
         console.error("Error parsing reports:", error);
@@ -78,8 +98,20 @@ const Dashboard = () => {
 
   const handleClearData = () => {
     clearAllHealthData();
-    setRiskMetrics([]);
+    setHighRiskMetrics([]);
+    setMediumRiskMetrics([]);
+    setLowRiskMetrics([]);
     setHasReports(false);
+    setSummary(undefined);
+  };
+
+  const getRiskColor = (status: "normal" | "warning" | "danger") => {
+    switch (status) {
+      case "normal": return "bg-green-500/10 border-green-500";
+      case "warning": return "bg-amber-500/10 border-amber-500";
+      case "danger": return "bg-destructive/10 border-destructive";
+      default: return "bg-muted/10 border-muted";
+    }
   };
 
   return (
@@ -134,59 +166,162 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {hasReports && riskMetrics.length > 0 && (
-          <Alert className="mb-6 border-destructive/50 bg-destructive/10">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <AlertTitle>Risk Factors Detected</AlertTitle>
-            <AlertDescription>
-              Your latest health report shows {riskMetrics.length} parameters that require attention.
-            </AlertDescription>
-          </Alert>
+        {hasReports && (
+          <>
+            {summary && (
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileText className="mr-2 h-5 w-5" />
+                    Summary Analysis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">{summary}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {(highRiskMetrics.length > 0 || mediumRiskMetrics.length > 0) && (
+              <Alert className="mb-6 border-destructive/50 bg-destructive/10">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <AlertTitle>Risk Factors Detected</AlertTitle>
+                <AlertDescription>
+                  Your latest health report shows {highRiskMetrics.length} high risk and {mediumRiskMetrics.length} medium risk parameters that require attention.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Tabs defaultValue="high-risk" className="mb-8">
+              <TabsList className="mb-4">
+                <TabsTrigger value="high-risk" className="relative">
+                  High Risk
+                  {highRiskMetrics.length > 0 && (
+                    <span className="ml-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">
+                      {highRiskMetrics.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="medium-risk" className="relative">
+                  Medium Risk
+                  {mediumRiskMetrics.length > 0 && (
+                    <span className="ml-1 bg-amber-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">
+                      {mediumRiskMetrics.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="normal" className="relative">
+                  Normal
+                  {lowRiskMetrics.length > 0 && (
+                    <span className="ml-1 bg-green-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">
+                      {lowRiskMetrics.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="high-risk">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {highRiskMetrics.length > 0 ? (
+                    highRiskMetrics.map((metric) => (
+                      <HealthMetricCard 
+                        key={metric.name}
+                        title={metric.name} 
+                        value={typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value} 
+                        unit={metric.unit} 
+                        status={metric.status} 
+                        description={`Outside normal range: ${metric.range} ${metric.unit}`} 
+                      />
+                    ))
+                  ) : (
+                    <Card className="md:col-span-2 lg:col-span-3 p-6 text-center">
+                      <div className="flex flex-col items-center justify-center p-6">
+                        <Shield className="h-12 w-12 text-green-500 mb-4" />
+                        <h3 className="text-xl font-semibold mb-2">No High Risk Parameters</h3>
+                        <p className="text-muted-foreground mb-4">No high risk health parameters were identified</p>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="medium-risk">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {mediumRiskMetrics.length > 0 ? (
+                    mediumRiskMetrics.map((metric) => (
+                      <HealthMetricCard 
+                        key={metric.name}
+                        title={metric.name} 
+                        value={typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value} 
+                        unit={metric.unit} 
+                        status={metric.status} 
+                        description={`Outside normal range: ${metric.range} ${metric.unit}`} 
+                      />
+                    ))
+                  ) : (
+                    <Card className="md:col-span-2 lg:col-span-3 p-6 text-center">
+                      <div className="flex flex-col items-center justify-center p-6">
+                        <AlertCircle className="h-12 w-12 text-green-500 mb-4" />
+                        <h3 className="text-xl font-semibold mb-2">No Medium Risk Parameters</h3>
+                        <p className="text-muted-foreground mb-4">No medium risk health parameters were identified</p>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="normal">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {lowRiskMetrics.length > 0 ? (
+                    lowRiskMetrics.slice(0, 6).map((metric) => (
+                      <HealthMetricCard 
+                        key={metric.name}
+                        title={metric.name} 
+                        value={typeof metric.value === 'object' ? JSON.stringify(metric.value) : metric.value} 
+                        unit={metric.unit} 
+                        status={metric.status} 
+                        description={`Within normal range: ${metric.range} ${metric.unit}`} 
+                      />
+                    ))
+                  ) : (
+                    <Card className="md:col-span-2 lg:col-span-3 p-6 text-center">
+                      <div className="flex flex-col items-center justify-center p-6">
+                        <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+                        <h3 className="text-xl font-semibold mb-2">No Data Available</h3>
+                        <p className="text-muted-foreground mb-4">Upload a health report to see all parameters</p>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+                {lowRiskMetrics.length > 6 && (
+                  <div className="flex justify-center">
+                    <Button 
+                      variant="outline"
+                      onClick={() => navigate("/reports")}
+                    >
+                      <FileText className="h-4 w-4 mr-2" /> View All Normal Parameters ({lowRiskMetrics.length})
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {riskMetrics.length > 0 ? (
-            riskMetrics.map((metric) => (
-              <HealthMetricCard 
-                key={metric.name}
-                title={metric.name} 
-                value={metric.value.toString()} 
-                unit={metric.unit} 
-                status={metric.status} 
-                description={`Outside normal range: ${metric.range} ${metric.unit}`} 
-              />
-            ))
-          ) : (
-            hasReports ? (
-              <Card className="md:col-span-2 lg:col-span-3 p-6 text-center">
-                <div className="flex flex-col items-center justify-center p-6">
-                  <Activity className="h-12 w-12 text-accent mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">All Parameters Normal</h3>
-                  <p className="text-muted-foreground mb-4">No risk factors were identified in your latest health report</p>
-                  <Button 
-                    variant="outline"
-                    onClick={() => navigate("/reports")}
-                  >
-                    <FileText className="h-4 w-4 mr-2" /> View Full Report
-                  </Button>
-                </div>
-              </Card>
-            ) : (
-              <Card className="md:col-span-2 lg:col-span-3 p-6 text-center">
-                <div className="flex flex-col items-center justify-center p-6">
-                  <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No Health Data Yet</h3>
-                  <p className="text-muted-foreground mb-4">Upload your first health report to see metrics and insights</p>
-                  <Button 
-                    onClick={handleUpload}
-                  >
-                    <Upload className="h-4 w-4 mr-2" /> Upload Health Report
-                  </Button>
-                </div>
-              </Card>
-            )
-          )}
-        </div>
+        {!hasReports && (
+          <Card className="md:col-span-2 lg:col-span-3 p-6 text-center mb-8">
+            <div className="flex flex-col items-center justify-center p-6">
+              <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No Health Data Yet</h3>
+              <p className="text-muted-foreground mb-4">Upload your first health report to see metrics and insights</p>
+              <Button 
+                onClick={handleUpload}
+              >
+                <Upload className="h-4 w-4 mr-2" /> Upload Health Report
+              </Button>
+            </div>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 overflow-hidden">
@@ -201,7 +336,7 @@ const Dashboard = () => {
               <div className="h-[300px] flex flex-col items-center justify-center border border-dashed rounded-md">
                 <Activity className="h-12 w-12 text-muted-foreground mb-3" />
                 <p className="text-muted-foreground text-center">Chart will appear when you have more data</p>
-                <Button variant="outline" className="mt-4">
+                <Button variant="outline" className="mt-4" onClick={() => navigate("/reports")}>
                   <TrendingUp className="h-4 w-4 mr-2" />
                   View Detailed Analysis
                 </Button>
