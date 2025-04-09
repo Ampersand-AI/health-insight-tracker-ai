@@ -7,13 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Info, Check, Key, Loader2, RefreshCw } from "lucide-react";
+import { Info, Check, Key, Loader2, RefreshCw, Plus, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 const apiKeySchema = z.object({
   apiKey: z.string().min(1, { message: "Please enter your OpenRouter API key" }),
-  model: z.string().default("anthropic/claude-3-opus:beta"),
+  primaryModel: z.string().default("anthropic/claude-3-opus:beta"),
+  useMultipleModels: z.boolean().default(false),
 });
 
 export const OpenAIKeyForm = () => {
@@ -23,30 +26,32 @@ export const OpenAIKeyForm = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [availableModels, setAvailableModels] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [modelLocked, setModelLocked] = useState(false);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [useMultipleModels, setUseMultipleModels] = useState(false);
 
   const form = useForm<z.infer<typeof apiKeySchema>>({
     resolver: zodResolver(apiKeySchema),
     defaultValues: {
       apiKey: "",
-      model: "anthropic/claude-3-opus:beta",
+      primaryModel: "anthropic/claude-3-opus:beta",
+      useMultipleModels: false,
     },
   });
 
   useEffect(() => {
     const savedKey = localStorage.getItem("openrouter_api_key");
-    const savedModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
+    const savedPrimaryModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
+    const savedUseMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
+    const savedFallbackModels = JSON.parse(localStorage.getItem("openrouter_fallback_models") || "[]");
     
     if (savedKey) {
       form.setValue("apiKey", savedKey);
-      form.setValue("model", savedModel);
+      form.setValue("primaryModel", savedPrimaryModel);
+      form.setValue("useMultipleModels", savedUseMultipleModels);
+      setUseMultipleModels(savedUseMultipleModels);
+      setSelectedModels(savedFallbackModels);
       setIsSaved(true);
       fetchAvailableModels(savedKey);
-      
-      // Check if model has been previously saved
-      if (localStorage.getItem("openrouter_model_locked") === "true") {
-        setModelLocked(true);
-      }
     }
   }, [form]);
 
@@ -87,17 +92,15 @@ export const OpenAIKeyForm = () => {
 
   const onSubmit = (data: z.infer<typeof apiKeySchema>) => {
     localStorage.setItem("openrouter_api_key", data.apiKey);
-    localStorage.setItem("openrouter_model", data.model);
-    localStorage.setItem("openrouter_model_locked", "true");
+    localStorage.setItem("openrouter_model", data.primaryModel);
+    localStorage.setItem("openrouter_use_multiple_models", data.useMultipleModels.toString());
+    localStorage.setItem("openrouter_fallback_models", JSON.stringify(selectedModels));
     setIsSaved(true);
-    setModelLocked(true);
     
-    // Display confirmation toast for the selected model
-    const selectedModelName = availableModels.find(m => m.id === data.model)?.name || data.model;
-    
+    // Display confirmation toast
     toast({
       title: "Settings Saved",
-      description: `Model "${selectedModelName}" has been set as your default model`,
+      description: `Model settings updated with ${selectedModels.length + 1} models configured${data.useMultipleModels ? " with fallback enabled" : ""}`,
     });
     
     // Fetch available models when API key is saved if not already loaded
@@ -108,7 +111,7 @@ export const OpenAIKeyForm = () => {
 
   const testConnection = async () => {
     const apiKey = form.getValues("apiKey");
-    const model = form.getValues("model");
+    const model = form.getValues("primaryModel");
     
     if (!apiKey) {
       toast({
@@ -172,15 +175,18 @@ export const OpenAIKeyForm = () => {
     setTimeout(() => {
       localStorage.removeItem("openrouter_api_key");
       localStorage.removeItem("openrouter_model");
-      localStorage.removeItem("openrouter_model_locked");
+      localStorage.removeItem("openrouter_use_multiple_models");
+      localStorage.removeItem("openrouter_fallback_models");
       
       form.reset({
         apiKey: "",
-        model: "anthropic/claude-3-opus:beta"
+        primaryModel: "anthropic/claude-3-opus:beta",
+        useMultipleModels: false
       });
       
       setIsSaved(false);
-      setModelLocked(false);
+      setSelectedModels([]);
+      setUseMultipleModels(false);
       setAvailableModels([]);
       
       toast({
@@ -190,6 +196,31 @@ export const OpenAIKeyForm = () => {
       
       setIsResetting(false);
     }, 500);
+  };
+
+  const handleModelSelection = (modelId: string) => {
+    if (selectedModels.includes(modelId)) {
+      setSelectedModels(selectedModels.filter(id => id !== modelId));
+    } else {
+      if (selectedModels.length < 4) { // Allow up to 4 fallback models (5 total with primary)
+        setSelectedModels([...selectedModels, modelId]);
+      } else {
+        toast({
+          title: "Maximum Models Reached",
+          description: "You can select up to 4 fallback models (5 total with primary)",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const removeSelectedModel = (modelId: string) => {
+    setSelectedModels(selectedModels.filter(id => id !== modelId));
+  };
+
+  const getModelName = (modelId: string): string => {
+    const model = availableModels.find(m => m.id === modelId);
+    return model ? model.name : modelId.split('/').pop() || modelId;
   };
 
   return (
@@ -250,14 +281,13 @@ export const OpenAIKeyForm = () => {
 
             <FormField
               control={form.control}
-              name="model"
+              name="primaryModel"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-neutral-300">Model</FormLabel>
+                  <FormLabel className="text-neutral-300">Primary Model</FormLabel>
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
-                    disabled={modelLocked}
                   >
                     <FormControl>
                       <SelectTrigger className="border-neutral-800 bg-neutral-900 focus:border-neutral-700 focus:ring-neutral-700 text-white">
@@ -284,19 +314,103 @@ export const OpenAIKeyForm = () => {
                           <SelectItem value="openai/gpt-4o" className="text-white">GPT-4o</SelectItem>
                           <SelectItem value="openai/gpt-4o-mini" className="text-white">GPT-4o Mini</SelectItem>
                           <SelectItem value="google/gemini-1.5-pro" className="text-white">Gemini 1.5 Pro</SelectItem>
+                          <SelectItem value="mistralai/mistral-large" className="text-white">Mistral Large</SelectItem>
+                          <SelectItem value="mistralai/mistral-7b-instruct-v0.2" className="text-white">Mistral 7B</SelectItem>
+                          <SelectItem value="nvidia/llama-3.1-nemotron-70b-instruct:free" className="text-white">Llama 3 70B</SelectItem>
                         </>
                       )}
                     </SelectContent>
                   </Select>
                   <FormDescription className="text-neutral-500">
-                    {modelLocked 
-                      ? "Your default model is locked. Reset API key to change." 
-                      : "Choose a model for processing your health reports"}
+                    This is the primary model that will be used first
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="useMultipleModels"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4 border border-neutral-800 bg-neutral-900">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked);
+                        setUseMultipleModels(checked as boolean);
+                      }}
+                      className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="text-neutral-300">
+                      Enable Fallback Models
+                    </FormLabel>
+                    <FormDescription className="text-neutral-500">
+                      If the primary model fails, the system will try other models in sequence
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {useMultipleModels && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-neutral-300">Fallback Models (up to 4)</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedModels.map(modelId => (
+                    <Badge key={modelId} variant="outline" className="gap-1 pr-1 bg-neutral-900 border-neutral-700">
+                      {getModelName(modelId)}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-transparent"
+                        onClick={() => removeSelectedModel(modelId)}
+                      >
+                        <X className="h-3 w-3 text-neutral-400" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+                
+                <div className="max-h-40 overflow-y-auto border border-neutral-800 rounded-md bg-neutral-900 p-2">
+                  {isLoadingModels ? (
+                    <div className="p-3 text-center">
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto text-neutral-400" />
+                      <p className="text-xs mt-1 text-neutral-400">Loading models...</p>
+                    </div>
+                  ) : availableModels.length > 0 ? (
+                    availableModels
+                      .filter(model => model.id !== form.getValues("primaryModel"))
+                      .map(model => (
+                        <div key={model.id} className="flex items-center p-1.5 hover:bg-neutral-800 rounded">
+                          <Checkbox
+                            id={`model-${model.id}`}
+                            checked={selectedModels.includes(model.id)}
+                            onCheckedChange={() => handleModelSelection(model.id)}
+                            className="mr-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                          />
+                          <label 
+                            htmlFor={`model-${model.id}`}
+                            className="text-sm text-neutral-300 cursor-pointer flex-1"
+                          >
+                            {model.name}
+                          </label>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-sm text-neutral-500 p-2">
+                      Please enter a valid API key to load available models
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Select up to 4 fallback models that will be tried if the primary model fails
+                </p>
+              </div>
+            )}
 
             <div className="flex items-start p-4 border border-neutral-800 bg-neutral-900 rounded-md">
               <Info className="h-5 w-5 text-neutral-500 mr-2 mt-0.5" />
@@ -311,13 +425,14 @@ export const OpenAIKeyForm = () => {
                 <p className="mt-2 text-xs">This app uses OpenRouter for OCR and analysis. You will be charged based on OpenRouter's pricing.</p>
               </div>
             </div>
+
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
                 type="submit" 
                 className="bg-neutral-800 hover:bg-neutral-700 text-white"
                 disabled={isResetting}
               >
-                Save API Key
+                Save Settings
               </Button>
               <Button 
                 type="button" 
