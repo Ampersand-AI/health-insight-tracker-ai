@@ -31,6 +31,21 @@ const Profile = () => {
           </TabsList>
           
           <TabsContent value="api" className="space-y-4">
+            <Card className="border-neutral-800 mb-4">
+              <CardHeader className="bg-neutral-900">
+                <CardTitle className="text-white">Together.ai Integration</CardTitle>
+                <CardDescription className="text-neutral-400">
+                  Using the official Together.ai client library for Llama 4 Maverik API
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="bg-neutral-950 pt-4">
+                <p className="text-sm text-neutral-400 mb-4">
+                  This application uses the official Together.ai client library to connect securely to the Llama 4 Maverik API.
+                  The library handles authentication, rate limiting, and ensures compatibility with the latest API features.
+                </p>
+              </CardContent>
+            </Card>
+            
             <TogetherAIKeyForm />
           </TabsContent>
           

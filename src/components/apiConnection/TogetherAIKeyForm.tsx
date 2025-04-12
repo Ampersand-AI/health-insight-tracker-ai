@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Info, Check, Key, Loader2, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
+import { testConnection } from "@/services/togetherAIClient";
 
 const apiKeySchema = z.object({
   apiKey: z.string().min(1, { message: "Please enter your Together.ai API key" }),
@@ -47,7 +47,7 @@ export const TogetherAIKeyForm = () => {
     });
   };
 
-  const testConnection = async () => {
+  const testAPIConnection = async () => {
     const apiKey = form.getValues("apiKey");
     
     if (!apiKey) {
@@ -60,37 +60,24 @@ export const TogetherAIKeyForm = () => {
     }
 
     setIsTesting(true);
+    localStorage.setItem("together_api_key", apiKey);
 
     try {
-      // Test the connection by making a simple chat completion request
-      const response = await fetch("https://api.together.xyz/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "meta-llama-3-70b-instruct",
-          messages: [
-            { role: "user", content: "Hello! This is a test message." }
-          ],
-          max_tokens: 1
-        })
-      });
+      // Use our new client to test the connection
+      const isSuccessful = await testConnection();
 
       setIsTesting(false);
 
-      if (response.ok) {
+      if (isSuccessful) {
         toast({
           title: "Connection Successful",
           description: "Your Together.ai API key is valid and working",
           variant: "default",
         });
       } else {
-        const error = await response.json();
         toast({
           title: "Connection Failed",
-          description: error.error?.message || "Your Together.ai API key appears to be invalid",
+          description: "Your Together.ai API key appears to be invalid",
           variant: "destructive",
         });
       }
@@ -200,7 +187,7 @@ export const TogetherAIKeyForm = () => {
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={testConnection}
+                onClick={testAPIConnection}
                 disabled={isTesting || isResetting}
                 className="border-neutral-800 hover:bg-neutral-900 text-neutral-300"
               >
