@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -74,7 +75,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       setProcessingStage("ocr");
       setProcessingDetail("Processing document with multiple AI models...");
 
-      // Create a safe wrapper for toast to avoid readonly property assignment error
+      // Create a safe toast wrapper that uses functional state updates
       const safeToast = (props: any) => {
         try {
           toast(props);
@@ -88,10 +89,10 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
             }
           }
           
-          // Count successful models
+          // Count successful models with functional updates
           if (props.title && props.title.startsWith("OCR Success:")) {
-            setModelsSuccess(prevCount => {
-              const newCount = prevCount + 1;
+            setModelsSuccess(prev => {
+              const newCount = prev + 1;
               setProcessingDetail(`Successfully processed with ${newCount}/${modelsTotal} models...`);
               return newCount;
             });
@@ -133,15 +134,19 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       const reportId = uuidv4();
       const reportType = determineReportType(file.name, ocrResult.text);
       
-      // Get patient name from localStorage (set during OCR if available)
-      const patientNameFromFile = localStorage.getItem('patientName');
-      if (patientNameFromFile && (!analysisResults.patientInfo || !analysisResults.patientInfo.name)) {
-        if (!analysisResults.patientInfo) {
-          analysisResults.patientInfo = { name: patientNameFromFile };
-        } else {
-          analysisResults.patientInfo.name = patientNameFromFile;
-        }
+      // Get patient info from localStorage (set during OCR if available)
+      const patientName = localStorage.getItem('patientName');
+      const patientAge = localStorage.getItem('patientAge');
+      const patientGender = localStorage.getItem('patientGender');
+      
+      // Update patient info if available from localStorage
+      if (!analysisResults.patientInfo) {
+        analysisResults.patientInfo = {};
       }
+      
+      if (patientName) analysisResults.patientInfo.name = patientName;
+      if (patientAge) analysisResults.patientInfo.age = patientAge;
+      if (patientGender) analysisResults.patientInfo.gender = patientGender;
       
       // Create a report title based on patient name if available
       let reportTitle = file.name.replace(/\.[^/.]+$/, "");

@@ -1,3 +1,4 @@
+
 import { toast } from "@/hooks/use-toast";
 
 // Type definitions for health report analysis
@@ -110,15 +111,26 @@ function mergeMetrics(allMetrics: HealthMetric[][]): HealthMetric[] {
   return Array.from(metricMap.values());
 }
 
+// Function to get patient info from localStorage and merge with analysis results
+function getStoredPatientInfo(): PatientInfo {
+  const patientInfo: PatientInfo = {};
+  
+  // Get patient name, age, and gender from localStorage (set during OCR)
+  const patientName = localStorage.getItem('patientName');
+  const patientAge = localStorage.getItem('patientAge');
+  const patientGender = localStorage.getItem('patientGender');
+  
+  if (patientName) patientInfo.name = patientName;
+  if (patientAge) patientInfo.age = patientAge;
+  if (patientGender) patientInfo.gender = patientGender;
+  
+  return patientInfo;
+}
+
 // Function to merge patient info from multiple analyses
 function mergePatientInfo(allPatientInfos: PatientInfo[]): PatientInfo {
-  const merged: PatientInfo = {};
-  
-  // First check if we have a name from the filename
-  const patientNameFromFile = localStorage.getItem('patientName');
-  if (patientNameFromFile) {
-    merged.name = patientNameFromFile;
-  }
+  // Start with stored patient info from OCR
+  const merged: PatientInfo = getStoredPatientInfo();
   
   for (const info of allPatientInfos) {
     if (!info) continue;
@@ -128,8 +140,10 @@ function mergePatientInfo(allPatientInfos: PatientInfo[]): PatientInfo {
       if (value && typeof value === 'string' && value.trim() !== '') {
         const existingValue = merged[key as keyof PatientInfo];
         
-        // Skip if we already have a name from the filename and this is the name field
-        if (key === 'name' && patientNameFromFile) {
+        // Skip if we already have a value from localStorage for name, age, gender
+        if ((key === 'name' && merged.name) || 
+            (key === 'age' && merged.age) || 
+            (key === 'gender' && merged.gender)) {
           return;
         }
         
@@ -151,7 +165,7 @@ async function analyzeWithModel(ocrText: string, model: string, apiKey: string):
   console.log(`Attempting analysis with model: ${model}`);
   
   try {
-    // Make the API call to OpenRouter with a more detailed prompt
+    // Make the API call to OpenRouter with a more detailed prompt for better parameter extraction
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -164,13 +178,13 @@ async function analyzeWithModel(ocrText: string, model: string, apiKey: string):
         messages: [
           {
             role: "system", 
-            content: `You are a medical assistant specializing in analyzing health reports and lab results. Extract ALL relevant information in detail:
+            content: `You are a medical assistant specializing in analyzing health reports and lab results. Extract ALL relevant information in extreme detail:
 
-1. Patient Information: Extract any patient details (name, ID, gender, date of birth, collection date).
-2. Health Metrics: For EVERY single parameter mentioned in the report:
-   - Extract the exact parameter name AS SHOWN in the report (maintain original terminology)
-   - Extract the value and unit exactly as shown
-   - Extract the reference range exactly as shown
+1. Patient Information: Extract any patient details (name, ID, gender, date of birth, age, collection date).
+2. Health Metrics: For EVERY SINGLE parameter mentioned in the report, no matter how minor:
+   - Extract the exact parameter name EXACTLY AS SHOWN in the report (maintain original terminology)
+   - Extract the exact value and unit as shown
+   - Extract the exact reference range as shown
    - Determine status: 'normal' if within range, 'warning' if slightly outside, 'danger' if significantly outside
    - Provide a detailed description of what each parameter measures
    - Categorize each parameter (e.g., "Electrolytes", "Lipids", "Liver Function", etc.)
@@ -209,7 +223,7 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
           },
           {
             role: "user", 
-            content: `Analyze this health report/lab result. Extract ALL metrics mentioned, patient details, and reference ranges: ${ocrText}`
+            content: `Analyze this health report/lab result. Extract ALL metrics mentioned, ALL patient details, and ALL reference ranges: ${ocrText}`
           }
         ],
         temperature: 0.1,
@@ -408,16 +422,17 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
         modelUsed: allResults.map(r => r.modelUsed).join(", ")
       };
     } else {
-      // Just use the single result but update patient info with any name from filename
-      mergedResult = allResults[0];
-      
-      // Update patient info with name from filename
-      const patientNameFromFile = localStorage.getItem('patientName');
-      if (patientNameFromFile && mergedResult.patientInfo) {
-        mergedResult.patientInfo.name = patientNameFromFile;
-      } else if (patientNameFromFile) {
-        mergedResult.patientInfo = { name: patientNameFromFile };
-      }
+      // Just use the single result but update patient info with our stored info
+      const storedPatientInfo = getStoredPatientInfo();
+      mergedResult = {
+        ...allResults[0],
+        patientInfo: {
+          ...allResults[0].patientInfo,
+          name: storedPatientInfo.name || allResults[0].patientInfo?.name,
+          age: storedPatientInfo.age || allResults[0].patientInfo?.age,
+          gender: storedPatientInfo.gender || allResults[0].patientInfo?.gender
+        }
+      };
     }
     
     const modelNames = mergedResult.modelUsed?.split(',').map(m => m.split('/').pop()).join(", ") || 
@@ -447,6 +462,8 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
 export function clearAllHealthData(): void {
   localStorage.removeItem('scannedReports');
   localStorage.removeItem('patientName');
+  localStorage.removeItem('patientAge');
+  localStorage.removeItem('patientGender');
   toast({
     title: "Data Cleared",
     description: "All health data has been removed from your device.",

@@ -29,24 +29,26 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
     const data = await response.json();
     console.log("OpenRouter models response:", data);
     
-    // Safely filter models that support vision tasks
+    // Filter models that support vision tasks more accurately
     const supportedModels = data.data
       .filter((model: any) => {
         try {
-          // Check if architecture exists and has the right properties
-          const hasVisionCapability = model.architecture && 
-                                      model.architecture.modality && 
-                                      (model.architecture.modality.includes('image') || 
-                                       (model.architecture.input_modalities && 
-                                        Array.isArray(model.architecture.input_modalities) && 
-                                        model.architecture.input_modalities.includes('image')));
+          // Check for vision capabilities more thoroughly
+          const hasVisionCapability = 
+            // Check if model explicitly lists image capabilities
+            (model.capabilities && 
+             Array.isArray(model.capabilities) && 
+             model.capabilities.includes('vision')) ||
+            // Check architecture.modality as backup
+            (model.architecture && 
+             model.architecture.modality && 
+             (model.architecture.modality.includes('image') || 
+             (model.architecture.input_modalities && 
+              Array.isArray(model.architecture.input_modalities) && 
+              model.architecture.input_modalities.includes('image'))));
           
-          // Check context length - we need at least 4000 for document analysis
+          // Check context length - need at least 4000 for document analysis
           const hasEnoughContext = model.context_length && model.context_length >= 4000;
-          
-          // Check if it's free or reasonably priced
-          const isReasonablyPriced = !model.pricing || 
-                                    (model.pricing.prompt && model.pricing.prompt < 0.01);
           
           return hasVisionCapability && hasEnoughContext;
         } catch (err) {
@@ -58,13 +60,16 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
     
     console.log("Available OCR-capable models:", supportedModels);
     
+    // Limit to top 5 models
+    const topModels = supportedModels.slice(0, 5);
+    
     // If no models found or error in filtering, return default set
-    if (supportedModels.length === 0) {
+    if (topModels.length === 0) {
       console.log("No OCR-capable models found, using default models");
       return getDefaultModels();
     }
     
-    return supportedModels;
+    return topModels;
   } catch (error) {
     console.error("Error fetching available models:", error);
     console.log("Falling back to default models due to error");
@@ -87,7 +92,7 @@ async function performOCRWithModel(file: File, model: string, apiKey: string, cu
   try {
     console.log(`Attempting OCR with model: ${model} for file: ${file.name} (${file.type}, ${file.size} bytes)`);
     
-    // Convert the file to base64 - improved conversion handling
+    // Convert the file to base64
     let base64File;
     try {
       base64File = await fileToBase64(file);
@@ -97,24 +102,22 @@ async function performOCRWithModel(file: File, model: string, apiKey: string, cu
       throw new Error("Failed to convert file to base64");
     }
     
-    // Prepare the prompt with more specific instructions
-    const prompt = `Please analyze this image or PDF and extract ALL the text content from it. This is a health report or medical lab result document.
-    
-1. Extract ALL text exactly as it appears, preserving the exact layout and formatting where possible
-2. Include ALL parameter names, values, units, and reference ranges
-3. Preserve ALL numeric values and units precisely
-4. Include section headers, titles, and labels
-5. Capture ALL footnotes and additional information
-6. Don't summarize or interpret - extract the complete text exactly as it appears
+    // Improved prompt for more accurate text extraction
+    const prompt = `This is a medical lab report or health document that needs complete text extraction. Please extract ALL text content exactly as it appears, including:
 
-The text extraction needs to be exhaustive and complete, as it will be used for medical analysis.`;
+1. ALL parameter names, values, units, and reference ranges - extract EVERY parameter mentioned
+2. ALL patient information (name, age, gender, date of birth, patient ID)
+3. ALL dates, doctor names, and facility information
+4. ALL section headers, titles, and labels
+5. ALL footnotes and additional information
+6. Do NOT summarize or interpret - extract the COMPLETE text exactly as it appears
 
-    // Log more information for debugging
+Your extraction needs to be extremely thorough and complete, capturing EVERY detail from the document.`;
+
     console.log(`Sending request to OpenRouter API for model: ${model}`);
     console.log(`File type: ${file.type}, File size: ${file.size} bytes`);
-    console.log(`Base64 string length: ${base64File.length} characters`);
     
-    // Make the API call to OpenRouter with improved error handling
+    // Make the API call to OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -143,7 +146,6 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     if (!response.ok) {
       const errorData = await response.json();
       console.error(`OpenRouter API error with model ${model}:`, errorData);
-      console.error(`Error details:`, JSON.stringify(errorData, null, 2));
       return null;
     }
 
@@ -158,6 +160,9 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     const ocrText = data.choices[0].message.content;
     console.log(`OCR completed successfully with model: ${model}, extracted ${ocrText.length} characters`);
     console.log(`First 200 chars of extracted text: ${ocrText.substring(0, 200)}...`);
+    
+    // Try to extract patient information from the OCR text
+    extractPatientInfoFromText(ocrText);
     
     // Notify success for this specific model
     const toastFn = customToast || toast;
@@ -182,6 +187,73 @@ The text extraction needs to be exhaustive and complete, as it will be used for 
     });
     
     return null;
+  }
+}
+
+// Helper function to extract patient info from OCR text and store it
+function extractPatientInfoFromText(text: string): void {
+  try {
+    // Look for patient name in OCR text using various patterns
+    const namePatterns = [
+      /Patient\s*Name\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i,
+      /Name\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i,
+      /Patient\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i
+    ];
+    
+    // Look for age in OCR text
+    const agePatterns = [
+      /\b(?:Age|DOB)\s*[:=\-]\s*(\d+)(?:\s*(?:years|yrs))?\b/i,
+      /\b(?:Age|DOB)\s*[:=\-]\s*(\d{1,3})\b/i,
+      /\b(\d{1,2})\s*(?:years|yrs)(?:\s*old)?\b/i
+    ];
+    
+    // Look for gender in OCR text
+    const genderPatterns = [
+      /\b(?:Gender|Sex)\s*[:=\-]\s*(Male|Female|M|F)\b/i,
+      /\b(Male|Female|M|F)\b/i
+    ];
+    
+    // Extract name
+    let patientName = null;
+    for (const pattern of namePatterns) {
+      const match = text.match(pattern);
+      if (match && match[1] && match[1].trim().length > 2) {
+        patientName = match[1].trim();
+        // Clean up potential title prefixes
+        patientName = patientName.replace(/^(Mr|Mrs|Ms|Miss|Dr)\.?\s+/i, '');
+        break;
+      }
+    }
+    
+    // Extract age
+    let patientAge = null;
+    for (const pattern of agePatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        patientAge = match[1].trim();
+        break;
+      }
+    }
+    
+    // Extract gender
+    let patientGender = null;
+    for (const pattern of genderPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const genderValue = match[1].trim().toUpperCase();
+        patientGender = genderValue === 'M' ? 'Male' : (genderValue === 'F' ? 'Female' : genderValue);
+        break;
+      }
+    }
+    
+    console.log("Extracted patient info from OCR text:", { name: patientName, age: patientAge, gender: patientGender });
+    
+    // Store the extracted information for later use
+    if (patientName) localStorage.setItem('patientName', patientName);
+    if (patientAge) localStorage.setItem('patientAge', patientAge);
+    if (patientGender) localStorage.setItem('patientGender', patientGender);
+  } catch (error) {
+    console.error("Error extracting patient info from OCR text:", error);
   }
 }
 
@@ -229,9 +301,18 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
       description: "Automatically selecting best models for document analysis...",
     });
 
+    // Extract patient name from filename first
+    const patientName = extractPatientNameFromFilename(file.name);
+    if (patientName) {
+      localStorage.setItem('patientName', patientName);
+      toastFn({
+        title: "Patient Identified",
+        description: `Detected patient name: ${patientName}`,
+      });
+    }
+
     // Get available models from OpenRouter that support vision tasks
-    const availableModels = await getAvailableModels(apiKey);
-    const modelsToUse = availableModels.slice(0, 5); // Use top 5 models
+    const modelsToUse = await getAvailableModels(apiKey);
     
     if (modelsToUse.length === 0) {
       toast({
@@ -248,18 +329,8 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
       title: "Models Selected",
       description: `Using ${modelsToUse.length} models for comprehensive document analysis`,
     });
-
-    // Extract patient name from filename
-    const patientName = extractPatientNameFromFilename(file.name);
-    if (patientName) {
-      localStorage.setItem('patientName', patientName);
-      toastFn({
-        title: "Patient Identified",
-        description: `Detected patient name: ${patientName}`,
-      });
-    }
     
-    // Process with all models in parallel for better results
+    // Process with selected models in parallel
     toastFn({
       title: "Processing Document",
       description: `Analyzing your document with ${modelsToUse.length} AI models for better results...`,
@@ -286,7 +357,6 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
     }, successfulResults[0]);
     
     const successRatio = `${successfulResults.length}/${modelsToUse.length}`;
-    const modelNames = successfulResults.map(r => r.modelUsed?.split('/').pop()).join(", ");
     
     toastFn({
       title: "OCR Complete",
@@ -373,5 +443,6 @@ export function clearAllData(): void {
   console.log("Clearing all stored health data");
   localStorage.removeItem('scannedReports');
   localStorage.removeItem('patientName');
-  // Don't show toast here as it might be confusing during the upload process
+  localStorage.removeItem('patientAge');
+  localStorage.removeItem('patientGender');
 }
