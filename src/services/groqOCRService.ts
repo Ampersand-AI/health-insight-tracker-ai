@@ -6,10 +6,10 @@ export interface OCRResult {
   confidence?: number;
 }
 
-// Function to perform OCR on an image or PDF file using Llama 4 Maverik
-async function performOCRWithLlama(file: File, apiKey: string, customToast?: Function): Promise<OCRResult | null> {
+// Function to perform OCR on an image or PDF file using Llama 3.1
+async function performOCRWithGroq(file: File, apiKey: string, customToast?: Function): Promise<OCRResult | null> {
   try {
-    console.log(`Attempting OCR with Llama 4 Maverik for file: ${file.name} (${file.type}, ${file.size} bytes)`);
+    console.log(`Attempting OCR with Groq for file: ${file.name} (${file.type}, ${file.size} bytes)`);
     
     // Convert the file to base64
     let base64File;
@@ -33,18 +33,18 @@ async function performOCRWithLlama(file: File, apiKey: string, customToast?: Fun
 
 Your extraction needs to be extremely thorough and complete, capturing EVERY detail from the document.`;
 
-    console.log(`Sending request to Together.ai API for Llama 4 Maverik`);
+    console.log(`Sending request to Groq API for Llama 3.1`);
     console.log(`File type: ${file.type}, File size: ${file.size} bytes`);
     
-    // Make the API call to Together.ai using the vision capabilities
-    const response = await fetch("https://api.together.xyz/v1/chat/completions", {
+    // Make the API call to Groq using the vision capabilities
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "meta-llama-4-maverik-v0:8b-parallel-2", // Using Llama 4 Maverik model
+        model: "llama-3.1-8b-instant",
         messages: [
           {
             role: "user",
@@ -59,11 +59,11 @@ Your extraction needs to be extremely thorough and complete, capturing EVERY det
       })
     });
 
-    console.log(`Received response from Together.ai API, status:`, response.status);
+    console.log(`Received response from Groq API, status:`, response.status);
     
     if (!response.ok) {
       const errorData = await response.json();
-      console.error(`Together.ai API error:`, errorData);
+      console.error(`Groq API error:`, errorData);
       return null;
     }
 
@@ -93,13 +93,13 @@ Your extraction needs to be extremely thorough and complete, capturing EVERY det
       text: ocrText
     };
   } catch (error) {
-    console.error(`Error performing OCR with Llama 4 Maverik:`, error);
+    console.error(`Error performing OCR with Groq:`, error);
     
     // Notify failure
     const toastFn = customToast || toast;
     toastFn({
       title: "OCR Failed",
-      description: "Could not process document with Llama 4 Maverik",
+      description: "Could not process document with Groq",
       variant: "destructive",
     });
     
@@ -184,11 +184,11 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
     // First clear any existing data
     clearAllData();
     
-    const apiKey = localStorage.getItem("together_api_key");
+    const apiKey = localStorage.getItem("groq_api_key");
     if (!apiKey) {
       toast({
         title: "API Key Missing",
-        description: "Please add your Together.ai API key in the settings first.",
+        description: "Please add your Groq API key in the settings first.",
         variant: "destructive",
       });
       return null;
@@ -231,19 +231,19 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
 
     toastFn({
       title: "Processing Document",
-      description: "Analyzing your document with Llama 4 Maverik...",
+      description: "Analyzing your document with Groq...",
     });
     
-    // Process with Llama 4 Maverik
-    const result = await performOCRWithLlama(file, apiKey, customToast);
+    // Process with Groq
+    const result = await performOCRWithGroq(file, apiKey, customToast);
     
     if (!result) {
-      throw new Error("Failed to process the document with Llama 4 Maverik");
+      throw new Error("Failed to process the document with Groq");
     }
     
     toastFn({
       title: "OCR Complete",
-      description: "Document processed successfully with Llama 4 Maverik",
+      description: "Document processed successfully with Groq",
     });
     
     return result;

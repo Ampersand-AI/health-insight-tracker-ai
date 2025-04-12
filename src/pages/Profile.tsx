@@ -2,10 +2,10 @@
 import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TogetherAIKeyForm } from "@/components/apiConnection/TogetherAIKeyForm";
+import { GroqKeyForm } from "@/components/apiConnection/GroqKeyForm";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { clearAllData } from "@/services/togetherAIOCRService";
+import { clearAllData } from "@/services/groqOCRService";
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -33,20 +33,20 @@ const Profile = () => {
           <TabsContent value="api" className="space-y-4">
             <Card className="border-neutral-800 mb-4">
               <CardHeader className="bg-neutral-900">
-                <CardTitle className="text-white">Together.ai Integration</CardTitle>
+                <CardTitle className="text-white">Groq Integration</CardTitle>
                 <CardDescription className="text-neutral-400">
-                  Using the official Together.ai client library for Llama 4 Maverik API
+                  Using Groq API for Llama 3.1 text and image analysis
                 </CardDescription>
               </CardHeader>
               <CardContent className="bg-neutral-950 pt-4">
                 <p className="text-sm text-neutral-400 mb-4">
-                  This application uses the official Together.ai client library to connect securely to the Llama 4 Maverik API.
-                  The library handles authentication, rate limiting, and ensures compatibility with the latest API features.
+                  This application uses the Groq API to connect securely to LLM models.
+                  The integration handles authentication, rate limiting, and ensures compatibility with the latest API features.
                 </p>
               </CardContent>
             </Card>
             
-            <TogetherAIKeyForm />
+            <GroqKeyForm />
           </TabsContent>
           
           <TabsContent value="data">

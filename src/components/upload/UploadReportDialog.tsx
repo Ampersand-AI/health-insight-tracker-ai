@@ -7,8 +7,8 @@ import { FileUploader } from "./FileUploader";
 import { Progress } from "@/components/ui/progress";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
-import { performOCR, clearAllData } from "@/services/togetherAIOCRService";
-import { analyzeHealthReport } from "@/services/togetherAIService";
+import { performOCR, clearAllData } from "@/services/groqOCRService";
+import { analyzeHealthReport } from "@/services/groqService";
 import { Loader2 } from "lucide-react";
 
 interface UploadReportDialogProps {
@@ -42,11 +42,11 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
   const handleFileUpload = (files: File[]) => {
     if (files.length === 0) return;
 
-    const apiKey = localStorage.getItem("together_api_key");
+    const apiKey = localStorage.getItem("groq_api_key");
     if (!apiKey) {
       toast({
         title: "API Key Missing",
-        description: "Please add your Together.ai API key in the settings first.",
+        description: "Please add your Groq API key in the settings first.",
         variant: "destructive",
       });
       return;
@@ -66,7 +66,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
           setIsUploading(false);
           setIsProcessing(true);
           setProcessingStage("ocr");
-          setProcessingDetail("Processing document with Llama 4 Maverik...");
+          setProcessingDetail("Processing document with Groq...");
           processFile(files[0]);
           return 100;
         }
@@ -77,9 +77,9 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
 
   const processFile = async (file: File) => {
     try {
-      // Step 1: Perform OCR on the uploaded file with Llama 4 Maverik
+      // Step 1: Perform OCR on the uploaded file with Groq
       setProcessingStage("ocr");
-      setProcessingDetail("Processing document with Llama 4 Maverik...");
+      setProcessingDetail("Processing document with Groq...");
 
       // Perform OCR with safe toast callback
       const ocrResult = await performOCR(file, safeToast);
@@ -147,7 +147,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
         detailedAnalysis: analysisResults.detailedAnalysis,
         categories: analysisResults.categories || [],
         patientInfo: analysisResults.patientInfo || {},
-        modelUsed: "Llama 4 Maverik"
+        modelUsed: "Groq Llama 3.1"
       };
 
       // Store only the current report (removes history as requested)
@@ -232,7 +232,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               
               {processingStage === "ocr" && (
                 <div className="text-center">
-                  <p className="font-medium">Processing document with Llama 4 Maverik</p>
+                  <p className="font-medium">Processing document with Groq</p>
                   <p className="text-sm text-muted-foreground">{processingDetail}</p>
                 </div>
               )}
@@ -251,7 +251,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               <p>Supported formats: PDF, JPG, PNG</p>
               <p>Maximum file size: 10MB</p>
               <p>Your data is securely processed and never shared</p>
-              <p className="mt-2 text-xs italic">Analysis will be performed using Llama 4 Maverik from Together.ai</p>
+              <p className="mt-2 text-xs italic">Analysis will be performed using Llama 3.1 from Groq</p>
             </div>
           )}
         </div>

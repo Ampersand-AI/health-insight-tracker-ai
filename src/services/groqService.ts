@@ -52,19 +52,19 @@ function getStoredPatientInfo(): PatientInfo {
   return patientInfo;
 }
 
-async function analyzeWithLlama(ocrText: string, apiKey: string): Promise<AnalysisResult | null> {
-  console.log(`Attempting analysis with Llama 4 Maverik`);
+async function analyzeWithGroq(ocrText: string, apiKey: string): Promise<AnalysisResult | null> {
+  console.log(`Attempting analysis with Groq`);
   
   try {
-    // Make the API call to Together.ai with a detailed prompt for better parameter extraction
-    const response = await fetch("https://api.together.xyz/v1/chat/completions", {
+    // Make the API call to Groq with a detailed prompt for better parameter extraction
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "meta-llama-4-maverik-v0:8b-parallel-2", // Using Llama 4 Maverik model
+        model: "llama-3.1-8b-instant",
         messages: [
           {
             role: "system", 
@@ -124,8 +124,8 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Together.ai API error:", errorData);
-      throw new Error(`Together.ai API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      console.error("Groq API error:", errorData);
+      throw new Error(`Groq API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
@@ -209,36 +209,36 @@ The detailedAnalysis should provide a comprehensive assessment of overall health
       patientInfo: analysisContent.patientInfo || {}
     };
   } catch (error) {
-    console.error(`Error analyzing with Llama 4 Maverik:`, error);
+    console.error(`Error analyzing with Groq:`, error);
     return null;
   }
 }
 
 export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResult | null> {
   try {
-    const apiKey = localStorage.getItem("together_api_key");
+    const apiKey = localStorage.getItem("groq_api_key");
     
     if (!apiKey) {
       toast({
         title: "API Key Missing",
-        description: "Please add your Together.ai API key in the settings first.",
+        description: "Please add your Groq API key in the settings first.",
         variant: "destructive",
       });
       return null;
     }
 
-    console.log(`Starting health report analysis with Llama 4 Maverik`);
+    console.log(`Starting health report analysis with Groq`);
     
     toast({
       title: "Analyzing Report",
-      description: "Processing your report with Llama 4 Maverik...",
+      description: "Processing your report with Groq...",
     });
     
-    // Analyze with Llama 4 Maverik
-    const result = await analyzeWithLlama(ocrText, apiKey);
+    // Analyze with Groq
+    const result = await analyzeWithGroq(ocrText, apiKey);
     
     if (!result) {
-      throw new Error("Failed to analyze the report with Llama 4 Maverik");
+      throw new Error("Failed to analyze the report with Groq");
     }
     
     // Update with stored patient info
