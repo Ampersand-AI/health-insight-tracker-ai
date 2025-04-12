@@ -2,10 +2,10 @@
 import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { OpenAIKeyForm } from "@/components/apiConnection/OpenAIKeyForm";
+import { TogetherAIKeyForm } from "@/components/apiConnection/TogetherAIKeyForm";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { clearAllData } from "@/services/openAIOCRService";
+import { clearAllData } from "@/services/togetherAIOCRService";
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -31,7 +31,7 @@ const Profile = () => {
           </TabsList>
           
           <TabsContent value="api" className="space-y-4">
-            <OpenAIKeyForm />
+            <TogetherAIKeyForm />
           </TabsContent>
           
           <TabsContent value="data">
