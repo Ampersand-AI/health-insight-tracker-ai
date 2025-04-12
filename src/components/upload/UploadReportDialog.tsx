@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +25,33 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
   const [modelsTotal, setModelsTotal] = useState<number>(0);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Create a safe toast wrapper that can be passed to async functions
+  const safeToast = useCallback((props: any) => {
+    try {
+      toast(props);
+      
+      // Track model selection
+      if (props.title === "Using Selected Models" || props.title === "Models Selected") {
+        const match = props.description.match(/Processing with (\d+)|Using (\d+) models/);
+        if (match && (match[1] || match[2])) {
+          const totalModels = parseInt(match[1] || match[2]);
+          setModelsTotal(totalModels);
+        }
+      }
+      
+      // Count successful models with functional updates
+      if (props.title && props.title.includes("OCR Success:")) {
+        setModelsSuccess(prev => {
+          const newCount = prev + 1;
+          setProcessingDetail(`Successfully processed with ${newCount}/${modelsTotal} models...`);
+          return newCount;
+        });
+      }
+    } catch (err) {
+      console.error("Error in toast wrapper:", err);
+    }
+  }, [toast]);
 
   const handleFileUpload = (files: File[]) => {
     if (files.length === 0) return;
@@ -56,7 +82,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
           setIsUploading(false);
           setIsProcessing(true);
           setProcessingStage("selecting");
-          setProcessingDetail("Selecting optimal OCR models from OpenRouter...");
+          setProcessingDetail("Preparing to process with your selected models...");
           processFile(files[0]);
           return 100;
         }
@@ -69,38 +95,11 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
     try {
       // First set selecting models stage
       setProcessingStage("selecting");
-      setProcessingDetail("Selecting optimal OCR models for your document type...");
+      setProcessingDetail("Using models configured in your settings...");
       
-      // Step 1: Perform OCR on the uploaded file with auto model selection
+      // Step 1: Perform OCR on the uploaded file with user-selected models
       setProcessingStage("ocr");
-      setProcessingDetail("Processing document with multiple AI models...");
-
-      // Create a safe toast wrapper that uses functional state updates
-      const safeToast = (props: any) => {
-        try {
-          toast(props);
-          
-          // Track model selection
-          if (props.title === "Models Selected") {
-            const match = props.description.match(/Using (\d+) models/);
-            if (match && match[1]) {
-              const totalModels = parseInt(match[1]);
-              setModelsTotal(totalModels);
-            }
-          }
-          
-          // Count successful models with functional updates
-          if (props.title && props.title.startsWith("OCR Success:")) {
-            setModelsSuccess(prev => {
-              const newCount = prev + 1;
-              setProcessingDetail(`Successfully processed with ${newCount}/${modelsTotal} models...`);
-              return newCount;
-            });
-          }
-        } catch (err) {
-          console.error("Error in toast wrapper:", err);
-        }
-      };
+      setProcessingDetail("Processing document with your selected models...");
 
       // Perform OCR with safe toast callback
       const ocrResult = await performOCR(file, safeToast);
@@ -134,7 +133,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
       const reportId = uuidv4();
       const reportType = determineReportType(file.name, ocrResult.text);
       
-      // Get patient info from localStorage (set during OCR if available)
+      // Get patient info from localStorage (set during OCR)
       const patientName = localStorage.getItem('patientName');
       const patientAge = localStorage.getItem('patientAge');
       const patientGender = localStorage.getItem('patientGender');
@@ -253,7 +252,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               
               {processingStage === "selecting" && (
                 <div className="text-center">
-                  <p className="font-medium">Selecting optimal models</p>
+                  <p className="font-medium">Using your selected models</p>
                   <p className="text-sm text-muted-foreground">{processingDetail}</p>
                 </div>
               )}
@@ -294,7 +293,7 @@ export function UploadReportDialog({ open, onOpenChange }: UploadReportDialogPro
               <p>Supported formats: PDF, JPG, PNG</p>
               <p>Maximum file size: 10MB</p>
               <p>Your data is securely processed and never shared</p>
-              <p className="mt-2 text-xs italic">All parameters including reference ranges will be extracted and matched using the original terminology</p>
+              <p className="mt-2 text-xs italic">Analysis will be performed using only your selected models from Settings</p>
             </div>
           )}
         </div>

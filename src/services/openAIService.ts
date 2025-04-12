@@ -332,11 +332,12 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     const primaryModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
     const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
     const fallbackModelsStr = localStorage.getItem("openrouter_fallback_models") || "[]";
-    let fallbackModels = JSON.parse(fallbackModelsStr);
+    let fallbackModels: string[] = [];
     
-    // Limit to maximum 8 fallback models
-    if (fallbackModels.length > 8) {
-      fallbackModels = fallbackModels.slice(0, 8);
+    try {
+      fallbackModels = JSON.parse(fallbackModelsStr);
+    } catch (e) {
+      console.error("Error parsing fallback models:", e);
     }
     
     if (!apiKey) {
@@ -363,7 +364,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     if (useMultipleModels && fallbackModels.length > 0) {
       toast({
         title: "Using Multiple Models",
-        description: "Analyzing with multiple AI models for more comprehensive results...",
+        description: `Analyzing with ${fallbackModels.length + 1} models as configured in settings`,
       });
       
       // Create promises for all fallback models
@@ -451,7 +452,7 @@ export async function analyzeHealthReport(ocrText: string): Promise<AnalysisResu
     console.error("Error analyzing health report:", error);
     toast({
       title: "Analysis Failed",
-      description: "Failed to analyze your health report with all configured models. Please check your API key and try again.",
+      description: "Failed to analyze your health report with the selected models. Please check your API key and try again.",
       variant: "destructive",
     });
     return null;

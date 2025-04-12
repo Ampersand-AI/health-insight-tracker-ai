@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 
 export interface OCRResult {
@@ -60,32 +59,34 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
     
     console.log("Available OCR-capable models:", supportedModels);
     
-    // Limit to top 5 models
-    const topModels = supportedModels.slice(0, 5);
-    
-    // If no models found or error in filtering, return default set
-    if (topModels.length === 0) {
-      console.log("No OCR-capable models found, using default models");
-      return getDefaultModels();
-    }
-    
-    return topModels;
+    return supportedModels;
   } catch (error) {
     console.error("Error fetching available models:", error);
-    console.log("Falling back to default models due to error");
-    return getDefaultModels();
+    console.log("Falling back to user selected models");
+    return [];
   }
 }
 
-// Function to get default models known to work well with OCR
-function getDefaultModels(): string[] {
-  return [
-    "anthropic/claude-3-opus:beta",
-    "openai/gpt-4o",
-    "anthropic/claude-3-sonnet:beta",
-    "google/gemini-pro-vision",
-    "anthropic/claude-3-haiku:beta"
-  ];
+// Helper function to get user-selected models
+function getUserSelectedModels(): string[] {
+  const primaryModel = localStorage.getItem("openrouter_model") || "anthropic/claude-3-opus:beta";
+  const useMultipleModels = localStorage.getItem("openrouter_use_multiple_models") === "true";
+  const fallbackModelsStr = localStorage.getItem("openrouter_fallback_models") || "[]";
+  let fallbackModels: string[] = [];
+  
+  try {
+    fallbackModels = JSON.parse(fallbackModelsStr);
+  } catch (e) {
+    console.error("Error parsing fallback models:", e);
+  }
+  
+  // If multiple models are enabled, return primary + fallbacks
+  if (useMultipleModels && fallbackModels.length > 0) {
+    return [primaryModel, ...fallbackModels];
+  }
+  
+  // Otherwise just return the primary model
+  return [primaryModel];
 }
 
 async function performOCRWithModel(file: File, model: string, apiKey: string, customToast?: Function): Promise<OCRResult | null> {
@@ -193,24 +194,29 @@ Your extraction needs to be extremely thorough and complete, capturing EVERY det
 // Helper function to extract patient info from OCR text and store it
 function extractPatientInfoFromText(text: string): void {
   try {
-    // Look for patient name in OCR text using various patterns
+    // Enhanced patterns for patient name
     const namePatterns = [
-      /Patient\s*Name\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i,
+      /Patient\s*(?:Name|Full\s*Name)\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i,
       /Name\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i,
-      /Patient\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i
+      /Patient\s*[:=\-]\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i,
+      /(?:Mr|Mrs|Ms|Miss|Dr)\.\s*([\w\s\.]+?)(?:\r|\n|,|;|\d)/i,
+      /(?:Name|Patient)\s*[:=\-].*?((?:[A-Z][a-z]+\s+){1,3}[A-Z][a-z]+)/
     ];
     
-    // Look for age in OCR text
+    // Enhanced patterns for age
     const agePatterns = [
       /\b(?:Age|DOB)\s*[:=\-]\s*(\d+)(?:\s*(?:years|yrs))?\b/i,
       /\b(?:Age|DOB)\s*[:=\-]\s*(\d{1,3})\b/i,
-      /\b(\d{1,2})\s*(?:years|yrs)(?:\s*old)?\b/i
+      /\b(\d{1,2})\s*(?:years|yrs)(?:\s*old)?\b/i,
+      /Age\s*[:=\-].*?(\d{1,2})/i
     ];
     
-    // Look for gender in OCR text
+    // Enhanced patterns for gender
     const genderPatterns = [
       /\b(?:Gender|Sex)\s*[:=\-]\s*(Male|Female|M|F)\b/i,
-      /\b(Male|Female|M|F)\b/i
+      /\b(?:Gender|Sex)\s*[:=\-].*?\b(Male|Female|M|F)\b/i,
+      /\bPatient.*?(Male|Female)\b/i,
+      /\b(Male|Female)\b/i
     ];
     
     // Extract name
@@ -296,11 +302,7 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
     }
 
     const toastFn = customToast || toast;
-    toastFn({
-      title: "Selecting Models",
-      description: "Automatically selecting best models for document analysis...",
-    });
-
+    
     // Extract patient name from filename first
     const patientName = extractPatientNameFromFilename(file.name);
     if (patientName) {
@@ -311,33 +313,33 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
       });
     }
 
-    // Get available models from OpenRouter that support vision tasks
-    const modelsToUse = await getAvailableModels(apiKey);
+    // Get models specifically selected by the user
+    const userSelectedModels = getUserSelectedModels();
     
-    if (modelsToUse.length === 0) {
+    if (userSelectedModels.length === 0) {
       toast({
-        title: "No Available Models",
-        description: "Could not find any OpenRouter models that support document analysis. Please try again later.",
+        title: "No Model Selected",
+        description: "Please select at least one model in the settings.",
         variant: "destructive",
       });
       return null;
     }
 
-    console.log("Selected models for OCR:", modelsToUse);
+    console.log("Using user-selected models for OCR:", userSelectedModels);
     
     toastFn({
-      title: "Models Selected",
-      description: `Using ${modelsToUse.length} models for comprehensive document analysis`,
+      title: "Using Selected Models",
+      description: `Processing with ${userSelectedModels.length} ${userSelectedModels.length === 1 ? 'model' : 'models'} as configured in settings`,
     });
     
     // Process with selected models in parallel
     toastFn({
       title: "Processing Document",
-      description: `Analyzing your document with ${modelsToUse.length} AI models for better results...`,
+      description: `Analyzing your document with ${userSelectedModels.length} selected ${userSelectedModels.length === 1 ? 'model' : 'models'}...`,
     });
     
     // Create promises for all models
-    const allPromises = modelsToUse.map(model => 
+    const allPromises = userSelectedModels.map(model => 
       performOCRWithModel(file, model, apiKey, customToast)
     );
     
@@ -348,7 +350,7 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
     const successfulResults = allResults.filter(result => result !== null) as OCRResult[];
     
     if (successfulResults.length === 0) {
-      throw new Error("All models failed to process the document");
+      throw new Error("All selected models failed to process the document");
     }
     
     // Find the result with the most text
@@ -356,7 +358,7 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
       return (current.text.length > best.text.length) ? current : best;
     }, successfulResults[0]);
     
-    const successRatio = `${successfulResults.length}/${modelsToUse.length}`;
+    const successRatio = `${successfulResults.length}/${userSelectedModels.length}`;
     
     toastFn({
       title: "OCR Complete",
@@ -368,7 +370,7 @@ export async function performOCR(file: File, customToast?: Function): Promise<OC
     console.error("Error performing OCR:", error);
     toast({
       title: "OCR Failed",
-      description: "Failed to process your document with all configured models. Please check your API key and try again.",
+      description: "Failed to process your document with all selected models. Please check your API key and try again.",
       variant: "destructive",
     });
     return null;
@@ -380,14 +382,21 @@ function extractPatientNameFromFilename(filename: string): string | null {
   // Remove file extension
   const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
   
-  // Common patterns for patient names in filenames:
-  // 1. Look for Mr/Mrs/Ms followed by name
-  const titleMatch = nameWithoutExt.match(/(?:Mr|Mrs|Ms|Miss|Dr)[\s_\-\.]+([A-Za-z\s_\-]+)/i);
+  // Common patterns for patient names in filenames
+  
+  // Look for name after patient ID pattern (common in medical reports)
+  const idNameMatch = nameWithoutExt.match(/\d+_(\w+)_(\w+)/);
+  if (idNameMatch && idNameMatch[1] && idNameMatch[2]) {
+    return `${idNameMatch[1]} ${idNameMatch[2]}`.replace(/_/g, " ");
+  }
+  
+  // Look for Mr/Mrs/Ms followed by name
+  const titleMatch = nameWithoutExt.match(/(?:Mr|Mrs|Ms|Miss|Dr)[s\._\-]+([A-Za-z\s_\-]+)/i);
   if (titleMatch && titleMatch[1]) {
     return titleMatch[1].replace(/[_\-\.]+/g, " ").trim();
   }
   
-  // 2. Names with underscore or dash separators: Report_John_Doe.pdf or Report-John-Doe.pdf
+  // Names with underscore or dash separators: Report_John_Doe.pdf or Report-John-Doe.pdf
   const underscorePattern = nameWithoutExt.replace(/^(Report|Lab|Test|Result|Health)[\s_\-]+/i, "");
   
   // Split by common separators
